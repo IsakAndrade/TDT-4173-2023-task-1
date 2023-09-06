@@ -6,12 +6,13 @@ import pandas as pd
 
 class DecisionTree:
     
-    def __init__():
+    def __init__(self):
         # NOTE: Feel free add any hyperparameters 
         # (with defaults) as you see fit
+        self.val = 0
         pass
     
-    def fit(self, X, y):
+    def fit(self, X: pd.DataFrame, y: pd.Series):
         """
         Generates a decision tree for classification
         
@@ -21,9 +22,60 @@ class DecisionTree:
                 to the features.
             y (pd.Series): a vector of discrete ground-truth labels
         """
-        # TODO: Implement 
-        raise NotImplementedError()
+        # Retrieve tests, labels
+        y_categories = y.unique()
+        print(y_categories)
+        tests = X.columns.values
+
+        print(tests)
+        
+        # Generate a list for qualities
+        test_qualities = []
+
+        # Calculating the quality of each test
+        for test in tests:
+            X_test_df = X[test]
+            categories = X[test].unique()
+            total = len(X_test_df)
+            
+            # Want weights
+            entropies = []
+            sizes = []
+
+            # Calculate entropy, and add these to a list
+            # Should probably be a struct of some sort, but I am not bothering with it as of now.
+            for category in categories:
+                category_df = X_test_df.loc[X_test_df == category]
+                
+                sizes.append(len(category_df))
+
+                index_entries = category_df.index.values.tolist()
+                
+                # Retrieve the output values
+                y_rows = y.iloc[index_entries]
+                
+                # Retireving the output matching either positive or negatative.
+                pos = len(y_rows.loc[y_rows == y_categories[0]])
+                neg = len(y_rows.loc[y_rows == y_categories[1]])
+                
+                entropy = calculate_entropy(pos, neg)
+                entropies.append(entropy)
+                sizes.append(pos+neg)
+
+
+            test_quality = 0.0
+            for i in range(len(entropies)):
+                test_quality = entropies[i]*sizes[i]/total + test_quality
+
+            test_qualities.append(test_quality)
+
+        print(test_qualities)
+
+
+
+        #raise NotImplementedError()
     
+
     def predict(self, X):
         """
         Generates predictions
@@ -63,6 +115,24 @@ class DecisionTree:
         raise NotImplementedError()
 
 
+def calculate_entropy(positive: int, negative: int) -> float:
+    total = positive + negative
+    print(positive)
+    # Avoiding log2(0)
+    if (positive > 0):
+        pos_entropy = -(positive/total)*np.log2(positive/total)
+    else:
+        pos_entropy = 0
+    
+    # Avoiding log2(0)
+    if (negative > 0):
+        neg_entropy = -(negative/total)*np.log2(negative/total)
+    else:
+        neg_entropy = 0
+        
+    entropy = pos_entropy + neg_entropy
+    return entropy
+
 # --- Some utility functions 
     
 def accuracy(y_true, y_pred):
@@ -78,6 +148,8 @@ def accuracy(y_true, y_pred):
     """
     assert y_true.shape == y_pred.shape
     return (y_true == y_pred).mean()
+
+
 
 
 def entropy(counts):
