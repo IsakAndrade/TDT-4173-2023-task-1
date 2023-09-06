@@ -25,51 +25,64 @@ class DecisionTree:
         # Retrieve tests, labels
         y_categories = y.unique()
         print(y_categories)
+
         tests = X.columns.values
 
-        print(tests)
-        
-        # Generate a list for qualities
-        test_qualities = []
-
-        # Calculating the quality of each test
-        for test in tests:
-            X_test_df = X[test]
-            categories = X[test].unique()
-            total = len(X_test_df)
+        test_tree = []
+        while len(tests) > 0:
+            print("These are the tests that remain", tests)
             
-            # Want weights
-            entropies = []
-            sizes = []
+            # Generate a list for qualities
+            test_qualities = []
 
-            # Calculate entropy, and add these to a list
-            # Should probably be a struct of some sort, but I am not bothering with it as of now.
-            for category in categories:
-                category_df = X_test_df.loc[X_test_df == category]
+            # Calculating the quality of each test
+            for test in tests:
+                X_test_df = X[test]
+                categories = X[test].unique()
+                total = len(X_test_df)
                 
-                sizes.append(len(category_df))
+                # Want weights
+                entropies = []
+                sizes = []
 
-                index_entries = category_df.index.values.tolist()
-                
-                # Retrieve the output values
-                y_rows = y.iloc[index_entries]
-                
-                # Retireving the output matching either positive or negatative.
-                pos = len(y_rows.loc[y_rows == y_categories[0]])
-                neg = len(y_rows.loc[y_rows == y_categories[1]])
-                
-                entropy = calculate_entropy(pos, neg)
-                entropies.append(entropy)
-                sizes.append(pos+neg)
+                # Calculate entropy, and add these to a list
+                # Should probably be a struct of some sort, but I am not bothering with it as of now.
+                for category in categories:
+                    category_df = X_test_df.loc[X_test_df == category]
+                    
+                    sizes.append(len(category_df))
+
+                    index_entries = category_df.index.values.tolist()
+                    
+                    # Retrieve the output values
+                    y_rows = y.iloc[index_entries]
+                    
+                    # Retireving the output matching either positive or negatative.
+                    pos = len(y_rows.loc[y_rows == y_categories[0]])
+                    neg = len(y_rows.loc[y_rows == y_categories[1]])
+                    
+                    entropy = calculate_entropy(pos, neg)
+                    entropies.append(entropy)
+                    # Notice that the entropy helps us create leaves and what gets carried through
+                    # The branches that gives great results should filter out
 
 
-            test_quality = 0.0
-            for i in range(len(entropies)):
-                test_quality = entropies[i]*sizes[i]/total + test_quality
+                test_quality = 0.0
+                for i in range(len(entropies)):
+                    test_quality = entropies[i]*sizes[i]/total + test_quality
 
-            test_qualities.append(test_quality)
+                test_qualities.append(test_quality)
 
-        print(test_qualities)
+            opt_index = test_qualities.index(min(test_qualities))
+            opt_quality = min(test_qualities)
+
+            opt_test = tests[opt_index]
+            tests = np.delete(tests, opt_index, 0)
+
+            test_tree.append(opt_test)
+            
+
+        print(test_tree)
 
 
 
@@ -117,7 +130,7 @@ class DecisionTree:
 
 def calculate_entropy(positive: int, negative: int) -> float:
     total = positive + negative
-    print(positive)
+
     # Avoiding log2(0)
     if (positive > 0):
         pos_entropy = -(positive/total)*np.log2(positive/total)
