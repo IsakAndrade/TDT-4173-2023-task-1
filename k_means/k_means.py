@@ -1,12 +1,13 @@
 import numpy as np 
-import pandas as pd 
+import pandas as pd
+import random
 # IMPORTANT: DO NOT USE ANY OTHER 3RD PARTY PACKAGES
 # (math, random, collections, functools, etc. are perfectly fine)
 
 
 class KMeans:
     
-    def __init__():
+    def __init__(self):
         # NOTE: Feel free add any hyperparameters 
         # (with defaults) as you see fit
         pass
@@ -20,8 +21,48 @@ class KMeans:
                 m rows (#samples) and n columns (#features)
         """
         # TODO: Implement
-        raise NotImplemented()
-    
+        
+        """
+        First we want to initialize a set of centroids. This should be moved into a function
+        to make the code clearer.
+
+        Should also explain the centroid matrix (np.array)
+        """
+        # Number of clusters
+        K = 3
+        labels = X.columns.values
+        dim = len(X.columns.values)
+
+        # Getting extremeties in each dimension.
+        min_arr = np.zeros((1,dim))
+        max_arr = np.zeros((1,dim))
+       
+        # Get min and max in each of the dimensions.
+        
+        for i in range(dim):
+            max_arr[0][i] = np.max(X[labels[i]])
+            min_arr[0][i] = np.min(X[labels[i]])
+        
+        print("Maximum value in each of the dimensions: ", max_arr)
+        print("Minimum value in each of the dimensions: ", min_arr)
+      
+        # Initializing centroid coordinates.
+        init_centroids = np.zeros(shape = (K, dim))
+        print(init_centroids)
+        # It does not need to match that precisely 
+        # However it would be nice if the numbers matched a bit more :)
+        for i in range(dim):
+            for j in range(K):
+                centroid = min_arr[0][i] + max_arr[0][i]*random.random()
+                init_centroids[j][i] = centroid
+        print("The initial centroids are: ", init_centroids)
+        """
+        Now we move on to calculate each distance for each centroid.
+        """
+
+
+
+
     def predict(self, X):
         """
         Generates predictions
@@ -38,9 +79,8 @@ class KMeans:
             there are 3 clusters, then a possible assignment
             could be: array([2, 0, 0, 1, 2, 1, 1, 0, 2, 2])
         """
-        # TODO: Implement 
-        raise NotImplemented()
-    
+
+
     def get_centroids(self):
         """
         Returns the centroids found by the K-mean algorithm
