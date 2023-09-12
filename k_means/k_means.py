@@ -32,13 +32,14 @@ class KMeans:
         K = 3
         labels = X.columns.values
         dim = len(X.columns.values)
-
+        height =len(X)
+        print("The height is ", height)
         # Getting extremeties in each dimension.
         min_arr = np.zeros((1,dim))
         max_arr = np.zeros((1,dim))
        
         # Get min and max in each of the dimensions.
-        
+        # Replace this with full and make all take equivalent space.
         for i in range(dim):
             max_arr[0][i] = np.max(X[labels[i]])
             min_arr[0][i] = np.min(X[labels[i]])
@@ -47,21 +48,33 @@ class KMeans:
         print("Minimum value in each of the dimensions: ", min_arr)
       
         # Initializing centroid coordinates.
-        init_centroids = np.zeros(shape = (K, dim))
-        print(init_centroids)
+        centroids = np.zeros(shape = (height, K*dim), dtype=float)
+        print(centroids)
         # It does not need to match that precisely 
         # However it would be nice if the numbers matched a bit more :)
-        for i in range(dim):
-            for j in range(K):
+        for j in range(K):
+            for i in range(dim):
                 centroid = min_arr[0][i] + max_arr[0][i]*random.random()
-                init_centroids[j][i] = centroid
-        print("The initial centroids are: ", init_centroids)
+                #centroids[:][i] = np.full((height,1), centroid, dtype=float)
+        print("The initial centroids are: ", centroids[0])
         """
         Now we move on to calculate each distance for each centroid.
         """
+        # Generate a set of ones that get multiplied by the K-points
+        """
+        This is a matrix where each column reprecents a distance from a centroid.S
+        numpy.array([
+            [d1_1, d1_2, ..., d1_n],
+            [d2_1, d2_2, ..., d2_n],
+                    .
+                    .
+                    .
+            [dm_1, dm_2, ..., dm_n]
+        ])
+        """
+        distances = np.array()
 
-
-
+        #Use np.full then take distance from each one
 
     def predict(self, X):
         """
