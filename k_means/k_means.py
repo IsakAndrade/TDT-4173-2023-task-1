@@ -52,11 +52,13 @@ class KMeans:
         print(centroids)
         # It does not need to match that precisely 
         # However it would be nice if the numbers matched a bit more :)
-        for j in range(K):
-            for i in range(dim):
-                centroid = min_arr[0][i] + max_arr[0][i]*random.random()
-                #centroids[:][i] = np.full((height,1), centroid, dtype=float)
+        for j in range(K*dim):
+            centroid = min_arr[0][j%dim] + max_arr[0][j%dim]*random.random()
+            centroids[:,j] = np.full((height,), centroid, dtype=float)
+            print(j)
+            print(centroids[0])
         print("The initial centroids are: ", centroids[0])
+
         """
         Now we move on to calculate each distance for each centroid.
         """
@@ -72,9 +74,32 @@ class KMeans:
             [dm_1, dm_2, ..., dm_n]
         ])
         """
-        distances = np.array()
+        distances = np.zeros((height, K), dtype=float)
+    
+        for k in range(K):
+            print(dim+k)
+            distances[:,k] = euclidean_distance(X, centroids[:,k:dim+k])
+        
+        # This again is an issue with the storage solutions.
+        # There is nothing symmetric, so symmetric storage is highly unnecesarry.
+        cluster_vals = []
+        for i in range(K):
+            cluster_vals.append([])
 
-        #Use np.full then take distance from each one
+        for row in range(height):
+            index = np.where(distances[row, :] == np.min(distances[row, :]))[0]
+            cluster_vals[index] = cluster_vals[index].append(X[row,:])
+        """
+        There should probably be created some sort of dictionary with the different np arrays
+        Either that or Giga array once more where we increase whenever we get an entry :/
+
+        A set of dim row for each cluster these are then used in a list, and accessed from there :/
+        
+        """
+        
+        
+
+
 
     def predict(self, X):
         """
