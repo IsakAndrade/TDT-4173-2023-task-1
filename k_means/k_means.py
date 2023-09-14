@@ -20,16 +20,9 @@ class KMeans:
             X (array<m,n>): a matrix of floats with
                 m rows (#samples) and n columns (#features)
         """
-        # TODO: Implement
-        
-        """
-        First we want to initialize a set of centroids. This should be moved into a function
-        to make the code clearer.
-
-        Should also explain the centroid matrix (np.array)
-        """
+       
         # Number of clusters
-        K = 2
+        K = 8
         labels = X.columns.values
         dim = len(X.columns.values)
         height =len(X)
@@ -56,7 +49,7 @@ class KMeans:
             centroid = min_arr[0][j%dim] + max_arr[0][j%dim]*random.random()
             centroids[:,j] = np.full((height,), centroid, dtype=float)
         
-        klomps = 300
+        klomps = 2000
 
         for klomp in range(klomps):
             """
@@ -96,17 +89,24 @@ class KMeans:
             for i in range(K):
                 arr = np.array(list_of_list[i])
                 x = []
-                for d in range(dim):
-                    centroids_1.append(np.mean(arr[:,d]))
-    
+                if len(arr.shape)> 1:
+                    centroids_1.append(np.mean(arr[:,0]))
+                    centroids_1.append(np.mean(arr[:,1]))
+                else:
+                    centroid = min_arr[0][0] + max_arr[0][0]*random.random()
+                    centroids_1.append(centroid)
+                    centroid = min_arr[0][1] + max_arr[0][1]*random.random()
+                    centroids_1.append(centroid)
+                    
+
 
             for j in range(K*dim):
                 centroid = centroids_1[j]
                 centroids[:,j] = np.full((height,), centroid, dtype=float)
         # Finish of by reshaping the whole shabang
+        
 
-
-        return centroids[0]
+        self.centroids = centroids
         
 
 
@@ -130,8 +130,23 @@ class KMeans:
         # Should simply calculate distance and pick the one with the shortest distance :)
 
         # Add hyperparameter centroids
+        K = 8
+        
+        dim = len(X.columns.values)
+        height =len(X)
 
+        distances = np.zeros((height, K), dtype= float)
 
+        for k in range(K):
+            distances[:,k] = euclidean_distance(X, self.centroids[:,dim*k:(dim+dim*k)])
+
+        categorized = np.zeros(shape = (height), dtype=int)
+        for row in range(height):
+            index = np.where(distances[row, :] == np.min(distances[row, :]))[0][0]
+            categorized[row] = index
+
+        return categorized
+    
     def get_centroids(self):
         """
         Returns the centroids found by the K-mean algorithm
@@ -147,7 +162,10 @@ class KMeans:
             [xm_1, xm_2, ..., xm_n]
         ])
         """
-        pass
+        dim = 2
+        K = 8
+
+        return self.centroids[0].reshape(K,dim)
     
     
     
@@ -196,14 +214,15 @@ def euclidean_distortion(X, z):
     assert len(X.shape) == 2
     assert len(z.shape) == 1
     assert X.shape[0] == z.shape[0]
-    
+    print(X.shape[0])
+    print(z.shape[0])
     distortion = 0.0
     clusters = np.unique(z)
+    print(clusters)
     for i, c in enumerate(clusters):
         Xc = X[z == c]
         mu = Xc.mean(axis=0)
-        distortion += ((Xc - mu) ** 2).sum(axis=1)
-        
+        #distortion += ((Xc - mu)**2).sum(axis=0)
     return distortion
 
 
