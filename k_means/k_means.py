@@ -29,7 +29,7 @@ class KMeans:
         Should also explain the centroid matrix (np.array)
         """
         # Number of clusters
-        K = 3
+        K = 2
         labels = X.columns.values
         dim = len(X.columns.values)
         height =len(X)
@@ -55,48 +55,58 @@ class KMeans:
         for j in range(K*dim):
             centroid = min_arr[0][j%dim] + max_arr[0][j%dim]*random.random()
             centroids[:,j] = np.full((height,), centroid, dtype=float)
-            print(j)
-            print(centroids[0])
-        print("The initial centroids are: ", centroids[0])
+        
+        klomps = 300
 
-        """
-        Now we move on to calculate each distance for each centroid.
-        """
-        # Generate a set of ones that get multiplied by the K-points
-        """
-        This is a matrix where each column reprecents a distance from a centroid.S
-        numpy.array([
-            [d1_1, d1_2, ..., d1_n],
-            [d2_1, d2_2, ..., d2_n],
-                    .
-                    .
-                    .
-            [dm_1, dm_2, ..., dm_n]
-        ])
-        """
-        distances = np.zeros((height, K), dtype=float)
+        for klomp in range(klomps):
+            """
+            Now we move on to calculate each distance for each centroid.
+            """
+            # Generate a set of ones that get multiplied by the K-points
+            """
+            This is a matrix where each column reprecents a distance from a centroid.S
+            numpy.array([
+                [d1_1, d1_2, ..., d1_n],
+                [d2_1, d2_2, ..., d2_n],
+                        .
+                        .
+                        .
+                [dm_1, dm_2, ..., dm_n]
+            ])
+            """
+            distances = np.zeros((height, K), dtype=float)
+        
+            for k in range(K):
+                distances[:,k] = euclidean_distance(X, centroids[:,k:dim+k])
+        
+            list_of_list = []  
+            for i in range(K):
+                list_of_list.append([])
+            
+            for row in range(height):
+                index = np.where(distances[row, :] == np.min(distances[row, :]))[0][0]
+                # Create an entry that makes sense
+                x = []
+                labels = X.columns.values.tolist()
+                for label in labels:
+                    x.append(X.iloc[row][label])
+                list_of_list[index].append(x)
+            
+            centroids_1 = []
+            for i in range(K):
+                arr = np.array(list_of_list[i])
+                x = []
+                for d in range(dim):
+                    centroids_1.append(np.mean(arr[:,d]))
     
-        for k in range(K):
-            print(dim+k)
-            distances[:,k] = euclidean_distance(X, centroids[:,k:dim+k])
-        
-        # This again is an issue with the storage solutions.
-        # There is nothing symmetric, so symmetric storage is highly unnecesarry.
-        cluster_vals = []
-        for i in range(K):
-            cluster_vals.append([])
 
-        for row in range(height):
-            index = np.where(distances[row, :] == np.min(distances[row, :]))[0]
-            cluster_vals[index] = cluster_vals[index].append(X[row,:])
-        """
-        There should probably be created some sort of dictionary with the different np arrays
-        Either that or Giga array once more where we increase whenever we get an entry :/
+            for j in range(K*dim):
+                centroid = centroids_1[j]
+                centroids[:,j] = np.full((height,), centroid, dtype=float)
+        # Finish of by reshaping the whole shabang
 
-        A set of dim row for each cluster these are then used in a list, and accessed from there :/
-        
-        """
-        
+
+        return centroids[0]
         
 
 
@@ -117,6 +127,9 @@ class KMeans:
             there are 3 clusters, then a possible assignment
             could be: array([2, 0, 0, 1, 2, 1, 1, 0, 2, 2])
         """
+        # Should simply calculate distance and pick the one with the shortest distance :)
+
+        # Add hyperparameter centroids
 
 
     def get_centroids(self):
