@@ -86,12 +86,15 @@ class DecisionTree:
                     neg = len(y_rows.loc[y_rows == y_categories[1]])
                     
                     # Test results 
-                    test_type = (pos>neg)
-                    
+                                        
                     entropy = calculate_entropy(pos, neg)
                     
                     entropies.append(entropy)
-                    test_types.append(test_type)
+                    print(pos>neg)
+                    if (pos>neg):
+                        test_types.append(y_categories[0])
+                    else:
+                        test_types.append(y_categories[1])
 
                 
                 leaves.append(leaf(test, categories, entropies, test_types))
@@ -164,17 +167,18 @@ class DecisionTree:
             A length m vector with predictions
         """
         # TODO: Implement 
-
-        y_pred = list(range(len(X)))
+        
+        min_X = X.index.values.tolist()[0]  
+        max_X = X.index.values.tolist()[-1]
+        y_pred = list(range(max_X + 1))
         
         
-        print(X)
-
+        
 
         for test in self.tree:
             queries= []
-            for i in range(0, len(test)-1):
-                query = "(" + test[0][i][0] + "==" + "\"" + test[0][i][1] + "\""+ ")"
+            for i in range(0, len(test[0])):
+                query = "(" + "`" + test[0][i][0] + "`" + "==" + "\"" + test[0][i][1] + "\""+ ")"
                 queries.append(query)
             
             query = ""
@@ -187,14 +191,13 @@ class DecisionTree:
 
             print("My query is", query)
             index = X.query(query).index.values.tolist()            
-            
+            print(len(X))
+            print(len(y_pred))
             for i in index:
-                if test[len(test)-1]:
-                    y_pred[i] = "No"
-                else:
-                    y_pred[i] = "Yes"
+                print(i)
+                y_pred[i] = test[-1]
         
-        y_arr = np.array(y_pred)
+        y_arr = np.array(y_pred[min_X:])
         return y_arr
 
     
