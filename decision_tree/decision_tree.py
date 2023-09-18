@@ -39,7 +39,6 @@ class DecisionTree:
         """
         # Retrieve tests, labels
         y_categories = y.unique()
-        print(y_categories)
 
         tests = X.columns.values
 
@@ -48,10 +47,11 @@ class DecisionTree:
         
         q_tree = [[]]
         data_split = [X]
+        rules_count = 0
 
-        while (len(tests) > 0) & (len((data_split)) > 0):
         
-            print("These are the tests that remain", tests)
+        while (len(tests) > 0) & (len((data_split)) > 0) & (len(tree)<8):
+        
             data = data_split.pop()
             
 
@@ -90,7 +90,7 @@ class DecisionTree:
                     entropy = calculate_entropy(pos, neg)
                     
                     entropies.append(entropy)
-                    print(pos>neg)
+                    
                     if (pos>neg):
                         test_types.append(y_categories[0])
                     else:
@@ -112,11 +112,7 @@ class DecisionTree:
 
             opt_test = tests[opt_index]
             tests = np.delete(tests, opt_index, 0)
-            print(tests)
-            # Shit forgot to remove those that my test successfully categorizes.
-            # After finding the optimal one I should remove those entries that my test deems usefull
-            # :/
-
+            
             test_tree.append(opt_test)
 
             # Use test to remove unwnanted data entries...
@@ -126,29 +122,24 @@ class DecisionTree:
             entropies = leaves[opt_index].entropies
             results = leaves[opt_index].results
             # Create a dataframe copy to toss everything into :/
-            en_threshhold = 0.3
+            en_threshhold = 0.2
             
             X_test_df = data[leaf_name]
 
             root = q_tree.pop()
-
 
             for i, cat in enumerate(cats):
                 category_df = X_test_df.loc[X_test_df == cat]
                 index_entries = category_df.index.values.tolist()
                 
                 if entropies[i] < en_threshhold:
-                    print(data)    
                     data.drop(index = index_entries, inplace = True)
                     tree.append((root + [(leaf_name, cat)], results[i]))
                 else:
                     q_tree.append(root + [(leaf_name, cat)])
                     data_split.append(data.loc[index_entries])
-            
-            print("My length is ", len(data_split))
-            print(tree)
-            self.tree = tree
-   
+            rules_count += 1
+        self.tree = tree
 
     
 
@@ -182,19 +173,18 @@ class DecisionTree:
                 queries.append(query)
             
             query = ""
-            print(queries)
+            
             if (len(queries)) > 1:
                 for i in range(0, len(queries)-1, 2):
                     query = query + queries[i] + " and " + queries[i+1]
             else:
                 query = queries[0]
 
-            print("My query is", query)
+            
             index = X.query(query).index.values.tolist()            
-            print(len(X))
-            print(len(y_pred))
+            print(index)
             for i in index:
-                print(i)
+               
                 y_pred[i] = test[-1]
         
         y_arr = np.array(y_pred[min_X:])
@@ -255,7 +245,6 @@ def accuracy(y_true, y_pred):
         The average number of correct predictions
     """
     assert y_true.shape == y_pred.shape
-    print(y_true)
     return (y_true == y_pred).mean()
 
 
