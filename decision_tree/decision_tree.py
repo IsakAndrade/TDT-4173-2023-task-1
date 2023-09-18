@@ -4,6 +4,21 @@ import pandas as pd
 # (math, random, collections, functools, etc. are perfectly fine)
 
 
+# Tree
+# Holds only 2 values.
+#   Tests: 
+#   Quality:
+#   Classification: 
+#   Pass on: 
+# Tests and a threshold that is set by the user of the tree
+class leaf:
+    def __init__(self, leaf_name: str, categories: list[str], entropies: list[float], results: list[bool]):
+        self.leaf_name = leaf_name
+        self.categories = categories
+        self.entropies = entropies
+        self.results = results
+    
+
 class DecisionTree:
     
     def __init__(self):
@@ -29,24 +44,33 @@ class DecisionTree:
         tests = X.columns.values
 
         test_tree = []
-        while len(tests) > 0:
+        tree = []
+        
+        q_tree = [[]]
+        data_split = [X]
+
+        while (len(tests) > 0) & (len((data_split)) > 0):
+        
             print("These are the tests that remain", tests)
+            data = data_split.pop()
             
+
             # Generate a list for qualities
             test_qualities = []
+            leaves = []
+            
 
-            # Calculating the quality of each test
             for test in tests:
-                X_test_df = X[test]
-                categories = X[test].unique()
+                X_test_df = data[test]
+                categories = data[test].unique()
+                
                 total = len(X_test_df)
                 
                 # Want weights
                 entropies = []
+                test_types = []
                 sizes = []
-
-                # Calculate entropy, and add these to a list
-                # Should probably be a struct of some sort, but I am not bothering with it as of now.
+                
                 for category in categories:
                     category_df = X_test_df.loc[X_test_df == category]
                     
@@ -61,32 +85,68 @@ class DecisionTree:
                     pos = len(y_rows.loc[y_rows == y_categories[0]])
                     neg = len(y_rows.loc[y_rows == y_categories[1]])
                     
+                    # Test results 
+                    test_type = (pos>neg)
+                    
                     entropy = calculate_entropy(pos, neg)
+                    
                     entropies.append(entropy)
-                    # Notice that the entropy helps us create leaves and what gets carried through
-                    # The branches that gives great results should filter out
+                    test_types.append(test_type)
 
-
+                
+                leaves.append(leaf(test, categories, entropies, test_types))
+                
                 test_quality = 0.0
                 for i in range(len(entropies)):
                     test_quality = entropies[i]*sizes[i]/total + test_quality
 
+                
                 test_qualities.append(test_quality)
-
+                
             opt_index = test_qualities.index(min(test_qualities))
-            opt_quality = min(test_qualities)
+            
+
 
             opt_test = tests[opt_index]
             tests = np.delete(tests, opt_index, 0)
+            print(tests)
+            # Shit forgot to remove those that my test successfully categorizes.
+            # After finding the optimal one I should remove those entries that my test deems usefull
+            # :/
 
             test_tree.append(opt_test)
+
+            # Use test to remove unwnanted data entries...
+            test_entry = leaves[opt_index]
+            leaf_name = leaves[opt_index].leaf_name
+            cats = leaves[opt_index].categories
+            entropies = leaves[opt_index].entropies
+            results = leaves[opt_index].results
+            # Create a dataframe copy to toss everything into :/
+            en_threshhold = 0.3
             
+            X_test_df = data[leaf_name]
 
-        print(test_tree)
+            root = q_tree.pop()
 
 
+            for i, cat in enumerate(cats):
+                category_df = X_test_df.loc[X_test_df == cat]
+                index_entries = category_df.index.values.tolist()
+                
+                if entropies[i] < en_threshhold:
+                    print(data)    
+                    data.drop(index = index_entries, inplace = True)
+                    tree.append(root + [leaf_name, cat, results[i]])
+                else:
+                    q_tree.append(root + [leaf_name, cat])
+                    data_split.append(data.loc[index_entries])
+            
+            print("My length is ", len(data_split))
+            print(tree)
+            self.tree = tree
+   
 
-        #raise NotImplementedError()
     
 
     def predict(self, X):
@@ -104,7 +164,40 @@ class DecisionTree:
             A length m vector with predictions
         """
         # TODO: Implement 
-        raise NotImplementedError()
+
+        y_pred = list(range(len(X)))
+        
+        
+        print(X)
+
+
+        for test in self.tree:
+            queries= []
+            for i in range(0, len(test)-1,2):
+                query = "(" + test[i] + "==" + "\"" + test[i+1] + "\""+ ")"
+                queries.append(query)
+            
+            query = ""
+            print(queries)
+            if (len(queries)) > 1:
+                for i in range(0, len(queries)-1, 2):
+                    query = query + queries[i] + " and " + queries[i+1]
+            else:
+                query = queries[0]
+
+            print("My query is", query)
+            index = X.query(query).index.values.tolist()            
+            
+            for i in index:
+                if test[len(test)-1]:
+                    y_pred[i] = "No"
+                else:
+                    y_pred[i] = "Yes"
+
+        
+        y_arr = np.array(y_pred)
+        return y_arr
+
     
     def get_rules(self):
         """
@@ -132,16 +225,16 @@ def calculate_entropy(positive: int, negative: int) -> float:
     total = positive + negative
 
     # Avoiding log2(0)
-    if (positive > 0):
+    if (positive > 0) & (negative != 0):
         pos_entropy = -(positive/total)*np.log2(positive/total)
     else:
-        pos_entropy = 0
+        pos_entropy = -1
     
     # Avoiding log2(0)
-    if (negative > 0):
+    if (positive != 0) & (negative > 0):
         neg_entropy = -(negative/total)*np.log2(negative/total)
     else:
-        neg_entropy = 0
+        neg_entropy = -1
         
     entropy = pos_entropy + neg_entropy
     return entropy
@@ -160,6 +253,7 @@ def accuracy(y_true, y_pred):
         The average number of correct predictions
     """
     assert y_true.shape == y_pred.shape
+    print(y_true)
     return (y_true == y_pred).mean()
 
 
