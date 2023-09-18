@@ -137,9 +137,9 @@ class DecisionTree:
                 if entropies[i] < en_threshhold:
                     print(data)    
                     data.drop(index = index_entries, inplace = True)
-                    tree.append(root + [leaf_name, cat, results[i]])
+                    tree.append((root + [(leaf_name, cat)], results[i]))
                 else:
-                    q_tree.append(root + [leaf_name, cat])
+                    q_tree.append(root + [(leaf_name, cat)])
                     data_split.append(data.loc[index_entries])
             
             print("My length is ", len(data_split))
@@ -173,8 +173,8 @@ class DecisionTree:
 
         for test in self.tree:
             queries= []
-            for i in range(0, len(test)-1,2):
-                query = "(" + test[i] + "==" + "\"" + test[i+1] + "\""+ ")"
+            for i in range(0, len(test)-1):
+                query = "(" + test[0][i][0] + "==" + "\"" + test[0][i][1] + "\""+ ")"
                 queries.append(query)
             
             query = ""
@@ -193,7 +193,6 @@ class DecisionTree:
                     y_pred[i] = "No"
                 else:
                     y_pred[i] = "Yes"
-
         
         y_arr = np.array(y_pred)
         return y_arr
@@ -218,7 +217,7 @@ class DecisionTree:
         ]
         """
         # TODO: Implement
-        raise NotImplementedError()
+        return self.tree
 
 
 def calculate_entropy(positive: int, negative: int) -> float:
