@@ -67,6 +67,7 @@ class DecisionTree:
                     
         #             # Retrieve the output values
         #             y_rows = y.iloc[index_entries]
+                    
         #             # Retireving the output matching either positive or negatative.
         #             pos = len(y_rows.loc[y_rows == y_categories[0]])
         #             neg = len(y_rows.loc[y_rows == y_categories[1]])
@@ -126,6 +127,39 @@ class DecisionTree:
         #             data_split.append(data.loc[index_entries])
         #     rules_count += 1
         # self.tree = tree
+
+    def _grow_tree(self, X, y, depth):
+        # Check termination conditions
+        if depth == self.max_depth or len(set(y)) == 1:
+            return TreeNode(value=self._most_common_label(y))
+
+        # Find the best split
+        feature, threshold = self._find_best_split(X, y)
+
+        # Split the data
+        X_left, y_left, X_right, y_right = self._split_data(X, y, feature, threshold)
+
+        # Recursively grow subtrees
+        left_subtree = self._grow_tree(X_left, y_left, depth + 1)
+        right_subtree = self._grow_tree(X_right, y_right, depth + 1)
+
+        # Create and return the current node
+        return TreeNode(feature=feature, threshold=threshold, left=left_subtree, right=right_subtree)
+    
+    def _find_best_split(self, X: pd.DataFrame, y: pd.DataFrame):
+        
+        cats = y.unique()
+        feats = X.columns.values
+        
+        for feat in feats:
+            feat_cats = X[feat].unique()
+
+        
+        # Implement your own method to find the best split (e.g., based on information gain or Gini impurity)
+        # This involves iterating over features and thresholds to find the optimal split point
+        # You can also consider other impurity measures or splitting criteria
+        pass
+
 
     
 
