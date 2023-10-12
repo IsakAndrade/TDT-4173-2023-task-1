@@ -7,10 +7,8 @@ import random
 
 class KMeans:
     
-    def __init__(self):
-        # NOTE: Feel free add any hyperparameters 
-        # (with defaults) as you see fit
-        pass
+    def __init__(self, K:int):
+        self.K = K
         
     def fit(self, X):
         """
@@ -21,25 +19,19 @@ class KMeans:
                 m rows (#samples) and n columns (#features)
         """
        
-        # Number of clusters
-        K = 8
+        K = self.K
         labels = X.columns.values
         dim = len(X.columns.values)
         height =len(X)
-        print("The height is ", height)
-        # Getting extremeties in each dimension.
-        min_arr = np.zeros((1,dim))
-        max_arr = np.zeros((1,dim))
-       
-        # Get min and max in each of the dimensions.
-        # Replace this with full and make all take equivalent space.
-        for i in range(dim):
-            max_arr[0][i] = np.max(X[labels[i]])
-            min_arr[0][i] = np.min(X[labels[i]])
         
-        print("Maximum value in each of the dimensions: ", max_arr)
-        print("Minimum value in each of the dimensions: ", min_arr)
-      
+        # Initializing with reasonable values
+        min_arr = np.zeros(dim)
+        max_arr = np.zeros(dim)
+       
+        for i in range(dim):
+            max_arr[i] = np.max(X[labels[i]])
+            min_arr[i] = np.min(X[labels[i]])
+        
         # Initializing centroid coordinates.
         centroids = np.zeros(shape = (height, K*dim), dtype=float)
         print(centroids)
@@ -49,9 +41,9 @@ class KMeans:
             centroid = min_arr[0][j%dim] + max_arr[0][j%dim]*random.random()
             centroids[:,j] = np.full((height,), centroid, dtype=float)
         
-        klomps = 2000
+        ITERATIONS = 2000
 
-        for klomp in range(klomps):
+        for i in range(ITERATIONS):
             """
             Now we move on to calculate each distance for each centroid.
             """

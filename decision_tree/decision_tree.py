@@ -11,21 +11,20 @@ import pandas as pd
 #   Classification: 
 #   Pass on: 
 # Tests and a threshold that is set by the user of the tree
-class leaf:
-    def __init__(self, leaf_name: str, categories: list[str], entropies: list[float], results: list[bool]):
-        self.leaf_name = leaf_name
-        self.categories = categories
-        self.entropies = entropies
-        self.results = results
+class TreeNode:
+    def __init__(self, feature=None, threshold=None, value=None, left=None, right=None):
+        self.feature = feature  # Index of feature to split on
+        self.threshold = threshold  # Threshold value for the split
+        self.value = value  # Prediction value for leaf nodes
+        self.left = left  # Left subtree
+        self.right = right  # Right subtree
     
 
 class DecisionTree:
     
-    def __init__(self):
-        # NOTE: Feel free add any hyperparameters 
-        # (with defaults) as you see fit
-        self.val = 0
-        pass
+    def __init__(self, max_depth:int = None):
+        self.max_depth = max_depth
+        self.tree = None
     
     def fit(self, X: pd.DataFrame, y: pd.Series):
         """
@@ -37,109 +36,96 @@ class DecisionTree:
                 to the features.
             y (pd.Series): a vector of discrete ground-truth labels
         """
-        # Retrieve tests, labels
-        y_categories = y.unique()
+        self.tree = self._grow_tree(X, y, depth=0)
 
-        tests = X.columns.values
+        # # Retrieve tests, labels
+        # y_categories = y.unique()
+        # tests = X.columns.values
+        # test_tree = []
+        # tree = []
+        # q_tree = [[]]
+        # data_split = [X]
+        # rules_count = 0
 
-        test_tree = []
-        tree = []
-        
-        q_tree = [[]]
-        data_split = [X]
-        rules_count = 0
-
-        
-        while (len(tests) > 0) & (len((data_split)) > 0) & (len(tree)<8):
-        
-            data = data_split.pop()
-            
-
-            # Generate a list for qualities
-            test_qualities = []
-            leaves = []
-            
-
-            for test in tests:
-                X_test_df = data[test]
-                categories = data[test].unique()
-                
-                total = len(X_test_df)
-                
-                # Want weights
-                entropies = []
-                test_types = []
-                sizes = []
-                
-                for category in categories:
-                    category_df = X_test_df.loc[X_test_df == category]
+        # while (len(tests) > 0) & (len((data_split)) > 0) & (len(tree)<8):        
+        #     data = data_split.pop()
+        #     # Generate a list for qualities
+        #     test_qualities = []
+        #     leaves = []
+        #     for test in tests:
+        #         X_test_df = data[test]
+        #         categories = data[test].unique()
+        #         total = len(X_test_df)
+        #         # Want weights
+        #         entropies = []
+        #         test_types = []
+        #         sizes = []
+        #         for category in categories:
+        #             category_df = X_test_df.loc[X_test_df == category]
+        #             sizes.append(len(category_df))
+        #             index_entries = category_df.index.values.tolist()
                     
-                    sizes.append(len(category_df))
-
-                    index_entries = category_df.index.values.tolist()
+        #             # Retrieve the output values
+        #             y_rows = y.iloc[index_entries]
+        #             # Retireving the output matching either positive or negatative.
+        #             pos = len(y_rows.loc[y_rows == y_categories[0]])
+        #             neg = len(y_rows.loc[y_rows == y_categories[1]])
                     
-                    # Retrieve the output values
-                    y_rows = y.iloc[index_entries]
-                    
-                    # Retireving the output matching either positive or negatative.
-                    pos = len(y_rows.loc[y_rows == y_categories[0]])
-                    neg = len(y_rows.loc[y_rows == y_categories[1]])
-                    
-                    # Test results 
+        #             # Test results 
                                         
-                    entropy = calculate_entropy(pos, neg)
+        #             entropy = calculate_entropy(pos, neg)
                     
-                    entropies.append(entropy)
+        #             entropies.append(entropy)
                     
-                    if (pos>neg):
-                        test_types.append(y_categories[0])
-                    else:
-                        test_types.append(y_categories[1])
+        #             if (pos>neg):
+        #                 test_types.append(y_categories[0])
+        #             else:
+        #                 test_types.append(y_categories[1])
 
                 
-                leaves.append(leaf(test, categories, entropies, test_types))
+        #         leaves.append(leaf(test, categories, entropies, test_types))
                 
-                test_quality = 0.0
-                for i in range(len(entropies)):
-                    test_quality = entropies[i]*sizes[i]/total + test_quality
+        #         test_quality = 0.0
+        #         for i in range(len(entropies)):
+        #             test_quality = entropies[i]*sizes[i]/total + test_quality
 
                 
-                test_qualities.append(test_quality)
+        #         test_qualities.append(test_quality)
                 
-            opt_index = test_qualities.index(min(test_qualities))
+        #     opt_index = test_qualities.index(min(test_qualities))
             
 
 
-            opt_test = tests[opt_index]
-            tests = np.delete(tests, opt_index, 0)
+        #     opt_test = tests[opt_index]
+        #     tests = np.delete(tests, opt_index, 0)
             
-            test_tree.append(opt_test)
+        #     test_tree.append(opt_test)
 
-            # Use test to remove unwnanted data entries...
-            test_entry = leaves[opt_index]
-            leaf_name = leaves[opt_index].leaf_name
-            cats = leaves[opt_index].categories
-            entropies = leaves[opt_index].entropies
-            results = leaves[opt_index].results
-            # Create a dataframe copy to toss everything into :/
-            en_threshhold = 0.2
+        #     # Use test to remove unwnanted data entries...
+        #     test_entry = leaves[opt_index]
+        #     leaf_name = leaves[opt_index].leaf_name
+        #     cats = leaves[opt_index].categories
+        #     entropies = leaves[opt_index].entropies
+        #     results = leaves[opt_index].results
+        #     # Create a dataframe copy to toss everything into :/
+        #     en_threshhold = 0.2
             
-            X_test_df = data[leaf_name]
+        #     X_test_df = data[leaf_name]
 
-            root = q_tree.pop()
+        #     root = q_tree.pop()
 
-            for i, cat in enumerate(cats):
-                category_df = X_test_df.loc[X_test_df == cat]
-                index_entries = category_df.index.values.tolist()
+        #     for i, cat in enumerate(cats):
+        #         category_df = X_test_df.loc[X_test_df == cat]
+        #         index_entries = category_df.index.values.tolist()
                 
-                if entropies[i] < en_threshhold:
-                    data.drop(index = index_entries, inplace = True)
-                    tree.append((root + [(leaf_name, cat)], results[i]))
-                else:
-                    q_tree.append(root + [(leaf_name, cat)])
-                    data_split.append(data.loc[index_entries])
-            rules_count += 1
-        self.tree = tree
+        #         if entropies[i] < en_threshhold:
+        #             data.drop(index = index_entries, inplace = True)
+        #             tree.append((root + [(leaf_name, cat)], results[i]))
+        #         else:
+        #             q_tree.append(root + [(leaf_name, cat)])
+        #             data_split.append(data.loc[index_entries])
+        #     rules_count += 1
+        # self.tree = tree
 
     
 
