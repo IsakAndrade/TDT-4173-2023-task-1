@@ -130,10 +130,11 @@ class DecisionTree:
 
     def _grow_tree(self, X, y, depth):
         # Check termination conditions
-        if depth == self.max_depth or len(set(y)) == 1:
+        if depth == self.max_depth or len(set(y)) == 1 or (len(X) == 0):
             return TreeNode(value=self._most_common_label(y))
 
         # Find the best split
+        print(X)
         feature, threshold = self._find_best_split(X, y)
 
         # Split the data
@@ -146,21 +147,95 @@ class DecisionTree:
         # Create and return the current node
         return TreeNode(feature=feature, threshold=threshold, left=left_subtree, right=right_subtree)
     
-    def _find_best_split(self, X: pd.DataFrame, y: pd.DataFrame):
+    def _find_best_split(self, X: pd.DataFrame, y: pd.DataFrame)-> tuple[str, float]:
         
-        cats = y.unique()
+        y_cats = y.unique()
         feats = X.columns.values
         
-        for feat in feats:
+        feat_scores = list(range(len(feats)))
+        feat_entropies = list(range(len(feats)))
+
+        for i, feat in enumerate(feats):
+            
             feat_cats = X[feat].unique()
 
+            entropies = []
+            for cat in feat_cats:
+                
+                cat_df = X[feat].loc[X[feat] == cat]
+                
+                cat_df_index = cat_df.index.values.tolist()
+                
+                # Retrieve the output values
+                y_rows = y.loc[cat_df_index]
+                
+                # Retrieving the output matching either positive or negative.
+                pos = len(y_rows.loc[y_rows == y_cats[0]])
+                neg = len(y_rows.loc[y_rows == y_cats[1]])
+                
+                # Test results 
+                                    
+                entropy = calculate_entropy(pos, neg)
+                
+                entropies.append(entropy)
+            
+            # Best feature should be the lowest?
+            feat_scores[i] = sum(entropies)
+            # Add partitioning score...
+            feat_entropies[i] = entropies 
+
+        best_split_index = feat_scores.index(min(feat_scores))
+        best_feat = feats[best_split_index]
+        threshold = min(feat_entropies[best_split_index])
+
+
+        return best_feat, threshold
+    
+    def _split_data(self, X: pd.DataFrame, y: pd.DataFrame, feature: str, threshold: float)-> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
+        # This function should not be looking for anything
+        # Only calculates the options
+        y_cats = y.unique()
+        X_left  = pd.DataFrame()
+        y_left  = pd.Series()
+        X_right = pd.DataFrame()
+        y_right = pd.Series()
+
+        feat_cats = X[feature].unique()
         
-        # Implement your own method to find the best split (e.g., based on information gain or Gini impurity)
-        # This involves iterating over features and thresholds to find the optimal split point
-        # You can also consider other impurity measures or splitting criteria
-        pass
+        for cat in feat_cats:
+            cat_df =  X[feature].loc[X[feature] == cat]
+            cat_df_index = cat_df.index.values.tolist()
+            
+            # Retrieve the output values
+            y_rows = y.loc[cat_df_index]
+            
+            # Retrieving the output matching either positive or negative.
+            pos = len(y_rows.loc[y_rows == y_cats[0]])
+            neg = len(y_rows.loc[y_rows == y_cats[1]])
 
+            entropy = calculate_entropy(pos, neg)
 
+            if entropy <= threshold:
+                X_new_left = X.loc[cat_df_index].drop(feature, axis =1)
+                X_left = pd.concat([X_left, X_new_left], axis = 0)
+                y_left = pd.concat([y_left, y_rows], axis = 0)
+            else:
+                X_new_right = X.loc[cat_df_index].drop(feature, axis =1)
+                X_right = pd.concat([X_right, X_new_right], axis = 0)
+                y_right = pd.concat([y_right, y_rows], axis = 0)
+                
+        # Removes the features that are good enough.
+        # 1. Split data based on the feature...
+        # 2. Check to see if it the partitioning meets the feature
+        # 3. Those that do not accomplish the threshhold gets removed to left tree
+
+        return X_left, y_left, X_right, y_right
+    
+    def _most_common_label(self, y: pd.Series) -> str:
+        
+        counts = y.value_counts()
+        
+        return counts.idxmax() 
     
 
     def predict(self, X):
@@ -240,13 +315,13 @@ def calculate_entropy(positive: int, negative: int) -> float:
     if (positive > 0) & (negative != 0):
         pos_entropy = -(positive/total)*np.log2(positive/total)
     else:
-        pos_entropy = -1
+        pos_entropy = 0
     
     # Avoiding log2(0)
     if (positive != 0) & (negative > 0):
         neg_entropy = -(negative/total)*np.log2(negative/total)
     else:
-        neg_entropy = -1
+        neg_entropy = 0
         
     entropy = pos_entropy + neg_entropy
     return entropy
