@@ -25,9 +25,11 @@ class TreeNode:
 
 class DecisionTree:
     
-    def __init__(self, max_depth:int = None):
-        self.max_depth = max_depth
-        self.tree = None
+    def __init__(self, min_samples_split: int = 2, max_depth: int = 100, n_features: list[str] = None):
+        self.min_samples_split  = min_samples_split
+        self.max_depth          = max_depth
+        self.n_features         = n_features
+        self.root               = None 
     
     def fit(self, X: pd.DataFrame, y: pd.Series):
         """
@@ -39,208 +41,126 @@ class DecisionTree:
                 to the features.
             y (pd.Series): a vector of discrete ground-truth labels
         """
-        self.tree = self._grow_tree(X, y, depth=0)
+
+        # Transforming the data so that it becomes easier to work with.
+        X_numeric = pd.DataFrame
+        
+        self.features = X.columns.values
+        
+        for numeric_feature, feature in enumerate(self.features):
+            thresh = X[feature].unique() 
+            thresh_numeric = list(range(len(thresh)))
+            string_to_number_mapping = [dict(zip(thresh, number)) for number in thresh_numeric]
+
+            X_numeric[numeric_feature] = X[feature].factorize()
 
 
-    def _grow_tree(self, X, y, depth):
-        # Check termination conditions
-        if depth == self.max_depth or len(set(y)) == 1 or (len(X) == 0):
-            return TreeNode(value=self._most_common_label(y))
 
-        # Find the best split
-        print(X)
-        feature, threshold = self._find_best_split(X, y)
 
-        # Split the data
-        X_left, y_left, X_right, y_right = self._split_data(X, y, feature, threshold)
+        self.tree = self._grow_tree(X_numeric, y)
 
-        # Recursively grow subtrees
-        left_subtree = self._grow_tree(X_left, y_left, depth + 1)
-        right_subtree = self._grow_tree(X_right, y_right, depth + 1)
+    def _grow_tree(self, X: pd.DataFrame, y: pd.Series) -> TreeNode:
+        n_samples, n_feats = len(X.columns.values)
+        
 
-        # Create and return the current node
-        return TreeNode(feature=feature, threshold=threshold, left=left_subtree, right=right_subtree)
+        # Check the stopping criteria
+        if (depth >= self.max_depth or n_labels == 1 or n_samples <self.min_samples_split):
+            leaf_value = self._most_common_label(y)
+            return TreeNode(value = leaf_value)
+        
+        feat_idxs = np.random.choice(n_feats, self.n_feats, replace = False)
+
+        best_feat_idx, best_thresh,  = _self_best_split(X, y, feat_idxs)
+
+        left_idx, right_idx = self._split(X[best_feat_idx], best_thresh)
+        
+        return TreeNode(best_feat_idx, best_thresh, left_idx, right_idx)
+
+    def _best_split(self, X: np.DataFrame, y: np.Series, feat_idxs: list[int]):
+        best_gain = -1
+        split_idx, split_thresh = None, None
+
+        for feat_idx in feat_idxs:
+            X_col = X[self.features[feat_idx]]
+            thresholds = X_col.unique()
+
+            for thr in thresholds:
+                # Calculate 
+                gain = _self_information_gain(y, X_column, thr)
+
+                if gain > best_gain:
+                    best_gain = gain
+                    split_idx = feat_idx
+                    split_threshold = thr
+        return split_idx, split_threshold
     
-    def _find_best_split(self, X: pd.DataFrame, y: pd.DataFrame)-> tuple[str, float]:
-        
-        y_cats = y.unique()
-        feats = X.columns.values
-        
-        feat_scores = list(range(len(feats)))
-        feat_entropies = list(range(len(feats)))
-
-        for i, feat in enumerate(feats):
-            
-            feat_cats = X[feat].unique()
-
-            entropies = []
-            for cat in feat_cats:
-                
-                cat_df = X[feat].loc[X[feat] == cat]
-                
-                cat_df_index = cat_df.index.values.tolist()
-                
-                # Retrieve the output values
-                y_rows = y.loc[cat_df_index]
-                
-                # Retrieving the output matching either positive or negative.
-                pos = len(y_rows.loc[y_rows == y_cats[0]])
-                neg = len(y_rows.loc[y_rows == y_cats[1]])
-                
-                # Test results 
-                                    
-                entropy = calculate_entropy(pos, neg)
-                
-                entropies.append(entropy)
-            
-            # Best feature should be the lowest?
-            feat_scores[i] = sum(entropies)
-            # Add partitioning score...
-            feat_entropies[i] = entropies 
-
-        best_split_index = feat_scores.index(min(feat_scores))
-        best_feat = feats[best_split_index]
-        threshold = min(feat_entropies[best_split_index])
-
-
-        return best_feat, threshold
-    
-    def _split_data(self, X: pd.DataFrame, y: pd.DataFrame, feature: str, threshold: float)-> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
-        # This function should not be looking for anything
-        # Only calculates the options
-        y_cats = y.unique()
-        X_left  = pd.DataFrame()
-        y_left  = pd.Series()
-        X_right = pd.DataFrame()
-        y_right = pd.Series()
-
-        feat_cats = X[feature].unique()
-        
-        for cat in feat_cats:
-            cat_df =  X[feature].loc[X[feature] == cat]
-            cat_df_index = cat_df.index.values.tolist()
-            
-            # Retrieve the output values
-            y_rows = y.loc[cat_df_index]
-            
-            # Retrieving the output matching either positive or negative.
-            pos = len(y_rows.loc[y_rows == y_cats[0]])
-            neg = len(y_rows.loc[y_rows == y_cats[1]])
-
-            entropy = calculate_entropy(pos, neg)
-
-            if entropy <= threshold:
-                X_new_left = X.loc[cat_df_index].drop(feature, axis =1)
-                X_left = pd.concat([X_left, X_new_left], axis = 0)
-                y_left = pd.concat([y_left, y_rows], axis = 0)
-            else:
-                X_new_right = X.loc[cat_df_index].drop(feature, axis =1)
-                X_right = pd.concat([X_right, X_new_right], axis = 0)
-                y_right = pd.concat([y_right, y_rows], axis = 0)
-                
-        # Removes the features that are good enough.
-        # 1. Split data based on the feature...
-        # 2. Check to see if it the partitioning meets the feature
-        # 3. Those that do not accomplish the threshhold gets removed to left tree
-
-        return X_left, y_left, X_right, y_right
-    
-    def _most_common_label(self, y: pd.Series) -> str:
-        
+    def _information_gain(y: pd.Series, X_col: pd.Series, thr):
+        # Parent entropy
         counts = y.value_counts()
+        parent_entropy = self._entropy(y)
         
-        return counts.idxmax() 
-    
+        # Create children
+        left_idxs, right_idxs = self._split(X_col, thr)
 
-    def predict(self, X):
+        if len(left_idxs) or len(right_idxs):
+            return 0
+        
+        # Calculate the wheighted gain
+        n = len(y)
+        n_l, n_r = len(left_idxs), len(right_idxs)
+        e_l, e_r = self._entropy(n_l), self._entropy(n_r)
+        
+        child_entropy =(n_l/n)*e_l + (r_l/n)*e_r
+        
+        # Calculate Information Gain
+        information_gain  = parent_entropy - child_entropy
+
+        return information_gain
+
+    def _split(self, X_col: pd.Series, split_thr) -> tuple[list[int], list[int]]:
+        # This must be changed
+        left_idxs   = X_col[X_col <= split_thr]
+        right_idxs  = X_col[X_col > split_thr]
+        return left_idxs, right_idxs
+
+    def _entropy(counts: np.array):
         """
-        Generates predictions
-        
-        Note: should be called after .fit()
-        
+        Computes the entropy of a partitioning
+
         Args:
-            X (pd.DataFrame): an mxn discrete matrix where
-                each row is a sample and the columns correspond
-                to the features.
-            
+            counts (array<k>): a lenth k int array >= 0. For instance,
+                an array [3, 4, 1] implies that you have a total of 8
+                datapoints where 3 are in the first group, 4 in the second,
+                and 1 one in the last. This will result in entropy > 0.
+                In contrast, a perfect partitioning like [8, 0, 0] will
+                result in a (minimal) entropy of 0.0
+                
         Returns:
-            A length m vector with predictions
+            A positive float scalar corresponding to the (log2) entropy
+            of the partitioning.
+
         """
-        # TODO: Implement 
-        
-        min_X = X.index.values.tolist()[0]  
-        max_X = X.index.values.tolist()[-1]
-        y_pred = list(range(max_X + 1))
-        
-        
-        
-
-        for test in self.tree:
-            queries= []
-            for i in range(0, len(test[0])):
-                query = "(" + "`" + test[0][i][0] + "`" + "==" + "\"" + test[0][i][1] + "\""+ ")"
-                queries.append(query)
-            
-            query = ""
-            
-            if (len(queries)) > 1:
-                for i in range(0, len(queries)-1, 2):
-                    query = query + queries[i] + " and " + queries[i+1]
-            else:
-                query = queries[0]
-
-            
-            index = X.query(query).index.values.tolist()            
-            print(index)
-            for i in index:
-               
-                y_pred[i] = test[-1]
-        
-        y_arr = np.array(y_pred[min_X:])
-        return y_arr
-
+        assert (counts >= 0).all()
+        probs = counts / counts.sum()
+        probs = probs[probs > 0]  # Avoid log(0)
+        return - np.sum(probs * np.log2(probs))
     
-    def get_rules(self):
-        """
-        Returns the decision tree as a list of rules
-        
-        Each rule is given as an implication "x => y" where
-        the antecedent is given by a conjuction of attribute
-        values and the consequent is the predicted label
-        
-            attr1=val1 ^ attr2=val2 ^ ... => label
-        
-        Example output:
-        >>> model.get_rules()
-        [
-            ([('Outlook', 'Overcast')], 'Yes'),
-            ([('Outlook', 'Rain'), ('Wind', 'Strong')], 'No'),
-            ...
-        ]
-        """
-        # TODO: Implement
-        return self.tree
-
-
-def calculate_entropy(positive: int, negative: int) -> float:
-    total = positive + negative
-
-    # Avoiding log2(0)
-    if (positive > 0) & (negative != 0):
-        pos_entropy = -(positive/total)*np.log2(positive/total)
-    else:
-        pos_entropy = 0
+    def predict(self, X: pd.DataFrame):
+        return np.array([self._traverse_tree(x) for x in X])
     
-    # Avoiding log2(0)
-    if (positive != 0) & (negative > 0):
-        neg_entropy = -(negative/total)*np.log2(negative/total)
-    else:
-        neg_entropy = 0
-        
-    entropy = pos_entropy + neg_entropy
-    return entropy
+    def _traverse_tree(self, x, node):
+        if node.is_leaf_node():
+            return node.value()
 
-# --- Some utility functions 
+        if x[node.feature] <= node.threshold:
+            return self._traverse_tree(x, node.left)
+
+        return self._traverse_tree(x, node.right)
+        
+
+
+
+
     
 def accuracy(y_true, y_pred):
     """
@@ -259,27 +179,7 @@ def accuracy(y_true, y_pred):
 
 
 
-def entropy(counts):
-    """
-    Computes the entropy of a partitioning
-    
-    Args:
-        counts (array<k>): a lenth k int array >= 0. For instance,
-            an array [3, 4, 1] implies that you have a total of 8
-            datapoints where 3 are in the first group, 4 in the second,
-            and 1 one in the last. This will result in entropy > 0.
-            In contrast, a perfect partitioning like [8, 0, 0] will
-            result in a (minimal) entropy of 0.0
-            
-    Returns:
-        A positive float scalar corresponding to the (log2) entropy
-        of the partitioning.
-    
-    """
-    assert (counts >= 0).all()
-    probs = counts / counts.sum()
-    probs = probs[probs > 0]  # Avoid log(0)
-    return - np.sum(probs * np.log2(probs))
+
 
 
 
