@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 
 class KMeans:
     
-    def __init__(self, K:int, max_iters: int = 100, plot_steps = False):
+    def __init__(self, K:int = 2, max_iters: int = 100, plot_steps = False, n_rerolls = 100):
         self.K = K
         self.max_iters = max_iters
         self.plot_steps = plot_steps
-        
+        self.n_rerolls = n_rerolls
         # List of sample indices for each cluster.
         self.clusters = [[] for _ in range (self.K)]
 
@@ -19,7 +19,7 @@ class KMeans:
         self.centroids = [[] for _ in range (self.K)]
         
         
-    def fit(self, X: pd.DataFrame):
+    def fit(self, X: pd.DataFrame) -> None:
         """
         Estimates parameters for the classifier
         
@@ -27,112 +27,87 @@ class KMeans:
             X (array<m,n>): a matrix of floats with
                 m rows (#samples) and n columns (#features)
         """
-        self.X = X
-        
-        self.n_samples, self.n_features = len(X.index), len(X.columns.values)
-
-        # Initialize 
-        random_sample_idxs = np.random.choice(self.n_samples, self.K, replace =False)
-
-        self.centroids = [self.X[idx] for id in random_sample_idxs]
-
-        # Optimize clusters
-        for _ in range(self.max_iters):
-            # Assign samples to the closests centroids
-            self.clusters = self._create_clusters(self.centroids)
-
-            if self.plot_steps:
-                self.plot()
-
-            centroids_old = self.centroid
-            self.get_centroids = self.get_centroids(self.clusters)
-
-            if self._is_converged(centroids_old, self.centroids):
-                break
-        
-        # Classify thes sample as the index of the clusters
-        return self._get_cluster_labels(self.clusters)
-
-
-        # labels = X.columns.values
-        # dim = len(X.columns.values)
-        # height =len(X)
-        
-        # # Initializing with reasonable values
-        # min_arr = np.zeros(dim)
-        # max_arr = np.zeros(dim)
        
-        # for i in range(dim):
-        #     max_arr[i] = np.max(X[labels[i]])
-        #     min_arr[i] = np.min(X[labels[i]])
-        
-        # # Initializing centroid coordinates.
-        # centroids = np.zeros(shape = (height, K*dim), dtype=float)
-        # print(centroids)
-        # # It does not need to match that precisely 
-        # # However it would be nice if the numbers matched a bit more :)
-        # for j in range(K*dim):
-        #     centroid = min_arr[0][j%dim] + max_arr[0][j%dim]*random.random()
-        #     centroids[:,j] = np.full((height,), centroid, dtype=float)
-        
-        # ITERATIONS = 2000
 
-        # for i in range(ITERATIONS):
-        #     """
-        #     Now we move on to calculate each distance for each centroid.
-        #     """
-        #     # Generate a set of ones that get multiplied by the K-points
-        #     """
-        #     This is a matrix where each column reprecents a distance from a centroid.S
-        #     numpy.array([
-        #         [d1_1, d1_2, ..., d1_n],
-        #         [d2_1, d2_2, ..., d2_n],
-        #                 .
-        #                 .
-        #                 .
-        #         [dm_1, dm_2, ..., dm_n]
-        #     ])
-        #     """
-        #     distances = np.zeros((height, K), dtype=float)
+       
+    def predict(self, X):
+        """
+        Generates predictions
         
-        #     for k in range(K):
-        #         distances[:,k] = euclidean_distance(X, centroids[:,k:dim+k])
+        Note: should be called after .fit()
         
-        #     list_of_list = []  
-        #     for i in range(K):
-        #         list_of_list.append([])
+        Args:
+            X (array<m,n>): a matrix of floats with 
+                m rows (#samples) and n columns (#features)
             
-        #     for row in range(height):
-        #         index = np.where(distances[row, :] == np.min(distances[row, :]))[0][0]
-        #         # Create an entry that makes sense
-        #         x = []
-        #         labels = X.columns.values.tolist()
-        #         for label in labels:
-        #             x.append(X.iloc[row][label])
-        #         list_of_list[index].append(x)
-            
-        #     centroids_1 = []
-        #     for i in range(K):
-        #         arr = np.array(list_of_list[i])
-        #         x = []
-        #         if len(arr.shape)> 1:
-        #             centroids_1.append(np.mean(arr[:,0]))
-        #             centroids_1.append(np.mean(arr[:,1]))
-        #         else:
-        #             centroid = min_arr[0][0] + max_arr[0][0]*random.random()
-        #             centroids_1.append(centroid)
-        #             centroid = min_arr[0][1] + max_arr[0][1]*random.random()
-        #             centroids_1.append(centroid)
-                    
+        Returns:
+            A length m integer array with cluster assignments
+            for each point. E.g., if X is a 10xn matrix and 
+            there are 3 clusters, then a possible assignment
+            could be: array([2, 0, 0, 1, 2, 1, 1, 0, 2, 2])
+        """
 
+        best_reroll_score = 0
+        # Initialize 
+        self.X = X
 
-        #     for j in range(K*dim):
-        #         centroid = centroids_1[j]
-        #         centroids[:,j] = np.full((height,), centroid, dtype=float)
-        # # Finish of by reshaping the whole shabang
+        self.n_samples, self.n_features = X.shape
+        random_sample_idxs = np.random.choice(self.n_samples, self.K, replace =False)
         
+        centroids = np.array([self.X[idx, :] for idx in random_sample_idxs])
 
-        # self.centroids = centroids
+        while len(centroids) < self.K:
+            distances = cross_euclidean_distance(centroids, X)
+            prob_vec = distances.min(axis = 0)
+            prob_vec = prob_vec**2/np.sum(prob_vec**2)
+            #Note: zero proability that new centorid is allready a centroid
+            idx = np.append(idx, np.random.choice(X.shape[0], size=1, p = prob_vec)) 
+            centroids = X[idx,:]
+        
+        self.centroids = centroids
+
+        for i in range(self.n_rerolls):
+            
+            # Find the two centroids that are closest and pick the centoid with the lowest average distance to other centroids
+            centroid_dist = cross_euclidean_distance(self.centroids)
+            cetorid_dist_inf = centroid_dist + np.diag(np.repeat(np.inf, centroid_dist.shape[0])) # Add inf to diag
+            worst_pair = np.unravel_index((cetorid_dist_inf).argmin(), cetorid_dist_inf.shape) # Find indexes of worst pair
+            worst_ind = worst_pair[0] if (np.mean(centroid_dist[worst_pair[0]])<np.mean(centroid_dist[worst_pair[1]])) else worst_pair[1]
+
+            # Assign the old centroid to be the one closest to the poinst that are furthest away from the current centroids
+            worst_sample = self._point_away(worst_ind)
+            
+            
+            self.centroids[worst_ind,:] = self.X[worst_sample,:]
+              
+            # Optimize clusters
+            for i in range(self.max_iters):
+                # Assign samples to the closests centroids
+                self.clusters = self._create_clusters(self.centroids)
+
+                if self.plot_steps:
+                    self.plot()
+
+                centroids_old = self.centroids
+                self.centroids = self._get_centroids(self.clusters)
+
+                if self._is_converged(centroids_old, self.centroids):
+                    print(i)
+                    break
+            
+            # Classify these sample as the index of the clusters
+            z = self._get_cluster_labels(self.clusters)
+            score = euclidean_silhouette(X,z)
+            
+            if score > best_reroll_score:
+                best_reroll_score = score
+                best_reroll_centroids = self.centroids
+
+        self.clusters = self._create_clusters(self.centroids)
+        z = self._get_cluster_labels(self.clusters)
+        
+        return  z
+
     def _get_cluster_labels(self, clusters):
         # Each sample will get 
         labels = np.empty(self.n_samples)
@@ -141,25 +116,35 @@ class KMeans:
             for sample_idx in cluster:
                 labels[sample_idx] = cluster_idx
 
-        return labels
+        return labels.astype(int)
 
-    
-    
+    def _point_away(self, unwanted_centroid_idx):
+        distances = []
+        centroids = np.delete(self.centroids, unwanted_centroid_idx, axis = 0)
+
+        for idx, sample in enumerate(self.X):
+            
+            avrage_dist = np.mean([euclidean_distance(sample, centroid) for centroid in centroids])
+            
+            distances.append(avrage_dist)
+        return np.argmax(distances)
+        
     def _create_clusters(self, centroids):
         # Assign the samples to the closest centroid.abs
-        cluster = [[] for _ in range(self.K)]
+        clusters = [[] for _ in range(self.K)]
         for idx, sample in enumerate(self.X):
-
-            centroid_idx = self._closest_centroid(sample, centroid)
+            centroid_idx = self._closest_centroid(sample, centroids)
+            clusters[centroid_idx].append(idx)
+        return clusters
 
     def _closest_centroid(self, sample, centroids):
-        distances = [euclidean_distance(sample, point) for point in centroid]
+        distances = [euclidean_distance(sample, point) for point in centroids]
         closest_idx = np.argmin(distances)
         return closest_idx
 
     def _get_centroids(self, clusters):
-        # Assugn the mean value of clusters to centroids
-        centroids = np.zeros(self.K, self.n_features)
+        # Assign the mean value of clusters to centroids
+        centroids = np.zeros((self.K, self.n_features))
         for cluster_idx, cluster in enumerate(clusters):
             cluster_mean = np.mean(self.X[cluster], axis = 0)
             centroids[cluster_idx] = cluster_mean
@@ -178,46 +163,11 @@ class KMeans:
             ax.scatter (*point)
 
         for point in self.centroids:
-            ax.sxatter(*point, marker = "x", color = "black", linewidth = 2)
+            ax.scatter(*point, marker = "x", color = "black", linewidth = 2)
 
         plt.show()
 
 
-    def predict(self, X):
-        """
-        Generates predictions
-        
-        Note: should be called after .fit()
-        
-        Args:
-            X (array<m,n>): a matrix of floats with 
-                m rows (#samples) and n columns (#features)
-            
-        Returns:
-            A length m integer array with cluster assignments
-            for each point. E.g., if X is a 10xn matrix and 
-            there are 3 clusters, then a possible assignment
-            could be: array([2, 0, 0, 1, 2, 1, 1, 0, 2, 2])
-        """
-        # Should simply calculate distance and pick the one with the shortest distance :)
-
-        # Add hyperparameter centroids
-        K = 8
-        
-        dim = len(X.columns.values)
-        height =len(X)
-
-        distances = np.zeros((height, K), dtype= float)
-
-        for k in range(K):
-            distances[:,k] = euclidean_distance(X, self.centroids[:,dim*k:(dim+dim*k)])
-
-        categorized = np.zeros(shape = (height), dtype=int)
-        for row in range(height):
-            index = np.where(distances[row, :] == np.min(distances[row, :]))[0][0]
-            categorized[row] = index
-
-        return categorized
     
     def get_centroids(self):
         """
@@ -234,10 +184,9 @@ class KMeans:
             [xm_1, xm_2, ..., xm_n]
         ])
         """
-        dim = 2
-        K = 8
+       
 
-        return self.centroids[0].reshape(K,dim)
+        return self.centroids
     
     
     
@@ -286,11 +235,10 @@ def euclidean_distortion(X, z):
     assert len(X.shape) == 2
     assert len(z.shape) == 1
     assert X.shape[0] == z.shape[0]
-    print(X.shape[0])
-    print(z.shape[0])
+    
     distortion = 0.0
     clusters = np.unique(z)
-    print(clusters)
+    
     for i, c in enumerate(clusters):
         Xc = X[z == c]
         mu = Xc.mean(axis=0)
