@@ -12,15 +12,15 @@ import pandas as pd
 #   Pass on: 
 # Tests and a threshold that is set by the user of the tree
 class TreeNode:
-    def __init__(self, feature: str = None, threshold: float = None, left = None, right = None, *, value: str = None):
+    def __init__(self, feature: str = None, threshold: float = None, left = None, right = None, *, value: int = None):
         self.feature   = feature    # Index of feature to split on
         self.threshold = threshold  # Threshold value for the split
         self.value     = value      # Prediction value for leaf nodes
         self.left      = left       # Left subtree
         self.right     = right      # Right subtree
         
-        def is_leaf_node(self):
-            return self.value is not None 
+    def is_leaf_node(self):
+        return self.value is not None 
     
 
 class DecisionTree:
@@ -48,6 +48,8 @@ class DecisionTree:
         self.features = X.columns.values
         self.numeric_features = list(range(len(X.columns.values)))
 
+        self.feature_mapping = [dict(zip(self.features, self.numeric_features)) for num in self.numeric_features][0]
+
         X_numeric = X.copy()
         X_numeric.columns = self.numeric_features
 
@@ -61,8 +63,15 @@ class DecisionTree:
             data = X[feature]
             X_numeric[numeric_feature] = pd.Series([thresh_mapping[val] for val in data])
 
+        self.thresh_mappings = thresh_mappings
+        
+        results = y.unique()
+        numeric_results = list(range(len(results)))
 
-        self.tree = self._grow_tree(X_numeric, y)
+        self.result_mapping = [dict(zip(results, numeric_results)) for res in numeric_results][0]
+
+        
+        self.root = self._grow_tree(X_numeric, y)
 
     def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0) -> TreeNode:
         n_samples, n_feats = len(X.index), len(X.columns.values)
@@ -76,8 +85,7 @@ class DecisionTree:
         feat_idxs = np.random.choice(n_feats, len(self.numeric_features), replace = False)
 
         best_feat, best_thresh,  = self._best_split(X, y, feat_idxs)
-        print(best_feat)
-        print(best_thresh)
+        
         X_col = X[best_feat]
 
         left_idx, right_idx = self._split(X_col, best_thresh)
@@ -97,11 +105,11 @@ class DecisionTree:
         for feat_idx in feat_idxs:
             X_col = X[feat_idx]
             thresholds = X_col.unique()
-            print("Thresh is,", thresholds)
+            
             for thr in thresholds:
                 # Calculate 
                 gain = self._information_gain(y, X_col, thr)
-                print("The gain is,", gain)
+                
                 if gain > best_gain:
                     best_gain = gain
                     split_idx = feat_idx
@@ -123,9 +131,9 @@ class DecisionTree:
         # Calculate the wheighted gain
         n = len(y)
         n_l, n_r = len(left_idxs), len(right_idxs)
-        e_l, e_r = self._entropy(y.loc[left_idxs]), self._entropy(y.loc[right_idxs])
+        e_l, e_r = self._entropy(y.loc[left_idxs].value_counts().values), self._entropy(y.loc[right_idxs].value_counts().values)
         
-        child_entropy =(n_l/n)*e_l + (r_l/n)*e_r
+        child_entropy =(n_l/n)*e_l + (n_r/n)*e_r
         
         # Calculate Information Gain
         information_gain  = parent_entropy - child_entropy
@@ -160,8 +168,113 @@ class DecisionTree:
         probs = probs[probs > 0]  # Avoid log(0)
         return - np.sum(probs * np.log2(probs))
     
+    def get_rules(self):
+        """
+        Returns the decision tree as a list of rules
+        
+        Each rule is given as an implication "x => y" where
+        the antecedent is given by a conjuction of attribute
+        values and the consequent is the predicted label
+        
+            attr1=val1 ^ attr2=val2 ^ ... => label
+        
+        Example output:
+        >>> model.get_rules()
+        [
+            ([('Outlook', 'Overcast')], 'Yes'),
+            ([('Outlook', 'Rain'), ('Wind', 'Strong')], 'No'),
+            ...
+        ]
+        """
+        numeric_rules = self._paths_to_leaves(self.root)
+        
+        rules = []
+        for numeric_rule in numeric_rules:
+            num_feats_and_threshs = numeric_rule[0]
+            
+            feat_and_thresh = []
+
+            for num_feat_and_thresh in num_feats_and_threshs:
+                num_feat = num_feat_and_thresh[0]
+                num_thresh = num_feat_and_thresh[1]
+
+                
+                
+                feat = self._feat_numeric_to_string(num_feat)
+                thresh = self._thresh_numeric_to_string(num_feat, num_thresh)
+
+                feat_and_thresh.append((feat,thresh))
+
+            
+            result = numeric_rule[1]
+
+            rules.append((feat_and_thresh, result))
+
+        return rules
+    
+    def _feat_numeric_to_string(self, num_feat: int)->str:
+        
+        string_to_numeric_dic = self.feature_mapping
+        
+        numeric_to_string_dic = {v: k for k, v in string_to_numeric_dic.items()}
+        
+        feat = numeric_to_string_dic[num_feat]
+
+        return feat
+
+    def _thresh_numeric_to_string(self, num_feat: int, num_thresh: int)->str:
+        string_to_numeric_dic = self.thresh_mappings[num_feat]
+
+        numeric_to_string_dic = {v: k for k, v in string_to_numeric_dic.items()}
+        
+        thresh = numeric_to_string_dic[num_thresh]
+
+        return thresh
+    
+    def _res_numeric_to_string(self, num_res: int)->str:
+        string_to_numeric_dic = self.result_mapping
+
+        numeric_to_string_dic = {v: k for k, v in string_to_numeric_dic.items()}
+        
+        res = numeric_to_string_dic[num_res]
+
+        return res
+
+    
+    def _paths_to_leaves(self, root, path = [], result = []):
+        if root:
+            # If it's a leaf add the path and value.
+            if root.is_leaf_node():
+                result.append((path, root.value))
+            else:
+                # Add the current node to the path
+                path.append((root.feature, root.threshold)) 
+           
+            # Traverse the left subtree
+            self._paths_to_leaves(root.left, path.copy())
+            
+            # Traverse the right subtree
+            self._paths_to_leaves(root.right, path.copy())
+        return result
+
+    
     def predict(self, X: pd.DataFrame):
-        return np.array([self._traverse_tree(x) for x in X])
+        X_numeric = X.copy()
+        X_numeric.columns = self.numeric_features
+
+        thresh_mappings = []
+        for numeric_feature, feature in enumerate(self.features):
+            thresh = X[feature].unique() 
+            thresh_numeric = list(range(len(thresh)))
+            thresh_mapping = [dict(zip(thresh, thresh_numeric)) for num in thresh_numeric][0]
+            thresh_mappings.append(thresh_mapping)
+            
+            data = X[feature]
+            X_numeric[numeric_feature] = pd.Series([thresh_mapping[val] for val in data])
+        results = []
+        for index, row in X_numeric.iterrows():
+            results.append(self._traverse_tree(row, self.root))
+        return np.array(results)
     
     def _traverse_tree(self, x, node):
         if node.is_leaf_node():
