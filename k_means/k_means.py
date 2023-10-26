@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 class KMeans:
     
-    def __init__(self, K:int = 2, max_iters: int = 100, plot_steps = False, n_rerolls = 100):
+    def __init__(self, K:int = 2, max_iters: int = 100, plot_steps = True, n_rerolls = 10):
         self.K = K
         self.max_iters = max_iters
         self.plot_steps = plot_steps
@@ -49,32 +49,52 @@ class KMeans:
 
         best_reroll_score = 0
         # Initialize 
-        self.X = X
+        for i in range(X.shape[1]):
+            X_min = np.min(X[:,i])
+            X_max = np.max(X[:,i])
+            normalized_X = (X[:,i] - X_min) / (X_max - X_min)
+            X[:,i] = normalized_X
 
+        self.X = X
         self.n_samples, self.n_features = X.shape
         
+        centroids = list(range(self.K))
+        distribution = np.array([1/self.n_samples for i in range(self.n_samples)]).flatten()
         
+        for i in list(range(self.K)):
+            print(distribution.shape)
+            random_sample_idxs = np.random.choice(self.n_samples, 1, replace =False, p = distribution)
+            centroids[i] = self.X[random_sample_idxs, :]
+            distances = []
+
+            for idx, sample in enumerate(self.X):
+                distance = 0 
+                for centroid in centroids[i:]:
+                    distance = distance + euclidean_distance(centroid, sample)
+                
+                distances.append(distance/len(centroids[i:]))
+            
+            distribution = np.array(distances).flatten()/sum(distances)
+        print(centroids)
+
+        self.centroids = np.array(centroids)
+        best_reroll_centroids = self.centroids
+        fig, ax = plt. subplots(figsize = (12, 8))
+
+        for i, point in enumerate(self.centroids):
+            point = self.centroids[i,:].T
+            
+            ax.scatter(*point, marker = "x", color = "black", linewidth = 2)
+
+        plt.show()
         
         for i in range(self.n_rerolls):
-            random_sample_idxs = np.random.choice(self.n_samples, self.K, replace =False)
-            centroids = np.array([self.X[idx, :] for idx in random_sample_idxs])
-        
-            # while len(centroids) < self.K:
-            #         distances = cross_euclidean_distance(centroids, self.X)
-            #         prob_vec = distances.min(axis = 0)
-            #         prob_vec = prob_vec**2/np.sum(prob_vec**2)
-            #         #Note: zero proability that new centorid is allready a centroid
-            #         idx = np.append(idx, np.random.choice(X.shape[0], size=1, p = prob_vec)) 
-            #         centroids = self.X[idx,:]
-            # self.centroids = centroids
-
-            best_reroll_centroids = self.centroids
             
             
 
-            self.centroids = np.array(centroids)
             
-            # Find the two centroids that are closest and pick the centoid with the lowest average distance to other centroids
+
+            # # Find the two centroids that are closest and pick the centoid with the lowest average distance to other centroids
             # centroid_dist = cross_euclidean_distance(self.centroids)
             # cetorid_dist_inf = centroid_dist + np.diag(np.repeat(np.inf, centroid_dist.shape[0])) # Add inf to diag
             # worst_pair = np.unravel_index((cetorid_dist_inf).argmin(), cetorid_dist_inf.shape) # Find indexes of worst pair
@@ -144,6 +164,7 @@ class KMeans:
 
     def _closest_centroid(self, sample, centroids):
         distances = [euclidean_distance(sample, point) for point in centroids]
+        
         closest_idx = np.argmin(distances)
         return closest_idx
 
@@ -151,13 +172,14 @@ class KMeans:
         # Assign the mean value of clusters to centroids
         centroids = np.zeros((self.K, self.n_features))
         for cluster_idx, cluster in enumerate(clusters):
-            cluster_mean = np.mean(self.X[cluster], axis = 0)
+            cluster_mean = np.mean(self.X[cluster,:], axis = 0)
             centroids[cluster_idx] = cluster_mean
         return centroids
 
     def _is_converged(self, centroids_old, centroids):
         # Distances between old and new centroids, for all centroids.
         distances = [euclidean_distance(centroids_old[i], centroids[i]) for i in range(self.K)]
+        print(distances)
         return sum(distances) == 0
 
     def plot(self):
@@ -167,7 +189,9 @@ class KMeans:
             point = self.X[index].T
             ax.scatter (*point)
 
-        for point in self.centroids:
+        for i, point in enumerate(self.centroids):
+            point = self.centroids[i,:].T
+            
             ax.scatter(*point, marker = "x", color = "black", linewidth = 2)
 
         plt.show()
@@ -242,14 +266,16 @@ def euclidean_distortion(X, z):
     assert X.shape[0] == z.shape[0]
     
     distortion = 0.0
-    clusters = np.unique(z)
     
+    clusters = np.unique(z)
+    print(clusters)
     for i, c in enumerate(clusters):
         Xc = X[z == c]
-        mu = Xc.mean(axis=0)
-        #distortion += ((Xc - mu)**2).sum(axis=0)
+        mu = Xc.mean(axis =0)
+        #Deleted this argument here due to dimension problems
+        distortion += ((Xc - mu) ** 2).sum()
+        
     return distortion
-
 
 def euclidean_silhouette(X, z):
     """

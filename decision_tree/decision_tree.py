@@ -75,24 +75,23 @@ class DecisionTree:
 
         # self.rules = []
         self.root = self._grow_tree(X, y)
-        for rule in self.rules:
-            print(rule)
+        # for rule in self.rules:
+        #     print(rule)
 
-    def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0, rule = []) -> TreeNode:
+    def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0, rule = [], used_splits = []) -> TreeNode:
         
         feat_idxs = X.columns.values.copy()
+        
+        np.random.shuffle(feat_idxs)
 
-        # np.random.shuffle(feat_idxs)
-       
         # Modify best split to take a set of blocked split.
-        best_feat = self._best_split(X.copy(), y.copy(), feat_idxs)
+        best_feat = self._best_split(X.copy(), y.copy(), feat_idxs, used_splits)
         
         best_threshs = X.copy()[best_feat].unique()
         
-        print(X.head())
         
         print("The best feature is", best_feat)
-        print("The best threshs", best_threshs)
+        print("The best thresh", best_threshs)
         for thr in best_threshs: 
             
             X_col = X[best_feat]
@@ -105,25 +104,27 @@ class DecisionTree:
 
             n_labels  = len(y_new.unique())
             n_samples = len(X_new.index)
-
-            print(thr)
             
             if (depth >= self.max_depth or n_labels == 1 or n_samples < self.min_samples_split):
-                leaf_value = self._most_common_label(y_new)
+                leaf_value = self._most_common_label(y)
                 self.rules.append([new_rule] + [leaf_value])
-                
-                return
+                print(self.rules)
+
+                return 0
             else:
-                X_new = X_new.drop(columns=[best_feat])
+                X_new = X_new.drop(labels= best_feat, axis = 1)
                 # print(X_new.head())
-                
-                self._grow_tree(X_new, y_new, depth+1, new_rule)
+                print(new_rule)
+                self._grow_tree(X_new, y_new, depth+1, new_rule, used_splits)
+            
+
+
         return 0
     
     def _most_common_label(self, y:pd.Series):
         return y.value_counts().idxmax()
 
-    def _best_split(self, X: pd.DataFrame, y: pd.Series, feat_idxs: list[int]):
+    def _best_split(self, X: pd.DataFrame, y: pd.Series, feat_idxs: list[int], used_splits):
         best_gain = -1
         split_idx, split_thresh = None, None
         gain = 0
