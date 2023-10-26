@@ -12,9 +12,10 @@ import pandas as pd
 #   Pass on: 
 # Tests and a threshold that is set by the user of the tree
 class TreeNode:
-    def __init__(self, feature: str = None, threshold: float = None, left = None, right = None, *, value: int = None):
+    def __init__(self, feature: str = None, threshold: float = None, left = None, right = None, depth = None, *, value: int = None):
         self.feature   = feature    # Index of feature to split on
         self.threshold = threshold  # Threshold value for the split
+        self.depth     = depth
         self.left      = left       # Left subtree
         self.right     = right      # Right subtree
         self.value     = value      # Prediction value for leaf nodes
@@ -29,7 +30,8 @@ class DecisionTree:
         self.min_samples_split  = min_samples_split
         self.max_depth          = max_depth
         self.n_features         = n_features
-        self.root               = None 
+        self.root               = None
+        self.rules              = []
     
     def fit(self, X: pd.DataFrame, y: pd.Series):
         """
@@ -42,60 +44,81 @@ class DecisionTree:
             y (pd.Series): a vector of discrete ground-truth labels
         """
 
-        # Transforming the data so that it becomes easier to work with.
+        # # Transforming the data so that it becomes easier to work with.
         
         
-        self.features = X.columns.values
-        self.numeric_features = list(range(len(X.columns.values)))
+        # self.features = X.columns.values
+        # self.numeric_features = list(range(len(X.columns.values)))
 
-        self.feature_mapping = [dict(zip(self.features, self.numeric_features)) for num in self.numeric_features][0]
+        # self.feature_mapping = [dict(zip(self.features, self.numeric_features)) for num in self.numeric_features][0]
 
-        X_numeric = X.copy()
-        X_numeric.columns = self.numeric_features
+        # X_numeric = X.copy()
+        # X_numeric.columns = self.numeric_features
 
-        thresh_mappings = []
-        for numeric_feature, feature in enumerate(self.features):
-            thresh = X[feature].unique() 
-            thresh_numeric = list(range(len(thresh)))
-            thresh_mapping = [dict(zip(thresh, thresh_numeric)) for num in thresh_numeric][0]
+        # thresh_mappings = []
+        # for numeric_feature, feature in enumerate(self.features):
+        #     thresh = X[feature].unique() 
+        #     thresh_numeric = list(range(len(thresh)))
+        #     thresh_mapping = [dict(zip(thresh, thresh_numeric)) for num in thresh_numeric][0]
             
             
-            data = X[feature]
-            X_numeric[numeric_feature] = pd.Series([thresh_mapping[val] for val in data])
-            thresh_mappings.append(thresh_mapping)
+        #     data = X[feature]
+        #     X_numeric[numeric_feature] = pd.Series([thresh_mapping[val] for val in data])
+        #     thresh_mappings.append(thresh_mapping)
         
-        self.thresh_mappings = thresh_mappings
+        # self.thresh_mappings = thresh_mappings
         
-        results = y.unique()
-        numeric_results = list(range(len(results)))
+        # results = y.unique()
+        # numeric_results = list(range(len(results)))
 
-        self.result_mapping = [dict(zip(results, numeric_results)) for res in numeric_results][0]
+        # self.result_mapping = [dict(zip(results, numeric_results)) for res in numeric_results][0]
 
+        # self.rules = []
+        self.root = self._grow_tree(X, y)
+        for rule in self.rules:
+            print(rule)
+
+    def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0, rule = []) -> TreeNode:
         
-        self.root = self._grow_tree(X_numeric, y)
+        feat_idxs = X.columns.values.copy()
 
-    def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0) -> TreeNode:
-        n_samples, n_feats = len(X.index), len(X.columns.values)
-        n_labels = len(y.unique())
-
-        # Check the stopping criteria
-        if (depth >= self.max_depth or n_labels == 1 or n_samples <self.min_samples_split):
-            leaf_value = self._most_common_label(y)
-            return TreeNode(value = leaf_value)
+        # np.random.shuffle(feat_idxs)
+       
+        # Modify best split to take a set of blocked split.
+        best_feat = self._best_split(X.copy(), y.copy(), feat_idxs)
         
-        feat_idxs = np.random.choice(n_feats, len(self.numeric_features), replace = False)
+        best_threshs = X.copy()[best_feat].unique()
         
-        best_feat, best_thresh,  = self._best_split(X, y, feat_idxs)
-        print("BEST FEAT & THRESH:", (best_feat, best_thresh))
-      
-        X_col = X.copy()[best_feat]
-        left_idx, right_idx = self._split(X_col, best_thresh)
-        print("LEFT IDX:", left_idx)
+        print(X.head())
+        
+        print("The best feature is", best_feat)
+        print("The best threshs", best_threshs)
+        for thr in best_threshs: 
+            
+            X_col = X[best_feat]
+            new_idxs = X_col[X_col == thr].index.to_list()
+            new_rule = rule + [(best_feat, thr)]
+            
+            # Check the stopping criteria
+            y_new = y.copy().loc[new_idxs]
+            X_new = X.copy().loc[new_idxs]
 
-        left = self._grow_tree(X.copy().loc[left_idx], y.copy().loc[left_idx], depth+1)
-        right = self._grow_tree(X.copy().loc[right_idx], y.copy().loc[right_idx], depth+1)
+            n_labels  = len(y_new.unique())
+            n_samples = len(X_new.index)
 
-        return TreeNode(feature = best_feat, threshold = best_thresh, left = left, right = right)
+            print(thr)
+            
+            if (depth >= self.max_depth or n_labels == 1 or n_samples < self.min_samples_split):
+                leaf_value = self._most_common_label(y_new)
+                self.rules.append([new_rule] + [leaf_value])
+                
+                return
+            else:
+                X_new = X_new.drop(columns=[best_feat])
+                # print(X_new.head())
+                
+                self._grow_tree(X_new, y_new, depth+1, new_rule)
+        return 0
     
     def _most_common_label(self, y:pd.Series):
         return y.value_counts().idxmax()
@@ -103,21 +126,21 @@ class DecisionTree:
     def _best_split(self, X: pd.DataFrame, y: pd.Series, feat_idxs: list[int]):
         best_gain = -1
         split_idx, split_thresh = None, None
-
+        gain = 0
         for feat_idx in feat_idxs:
             X_col = X[feat_idx]
             thresholds = X_col.unique()
             
             for thr in thresholds:
                 # Calculate 
-                gain = self._information_gain(y, X_col, thr)
+                gain = gain + self._information_gain(y, X_col, thr)
                 
-                if gain > best_gain:
-                    best_gain = gain
-                    split_idx = feat_idx
-                    split_thresh = thr
-
-        return split_idx, split_thresh
+            if gain > best_gain:
+                best_gain = gain
+                split_idx = feat_idx  
+            gain = -1
+        
+        return split_idx
     
     def _information_gain(self, y: pd.Series, X_col: pd.Series, thr):
         # Parent entropy
@@ -146,6 +169,7 @@ class DecisionTree:
         
         left_idxs   = X_col[X_col <= split_thr].index.to_list()
         right_idxs  = X_col[X_col > split_thr].index.to_list()
+       
         return left_idxs, right_idxs
 
     def _entropy(self, counts: np.array):
@@ -188,53 +212,36 @@ class DecisionTree:
             ...
         ]
         """
-        
-        numeric_rules = self._get_numeric_rules(self.root)
-        
-        rules = []
-        for numeric_rule in numeric_rules:
-            num_feats_and_threshs = numeric_rule[0]
-            
-            feat_and_thresh = []
+        # numeric_rules = self.inorderTraversal(self.root)
+        # print(numeric_rules)
+        # numeric_rules = []
+        # self._paths_to_leaves(self.root, [], numeric_rules)
+        # print(numeric_rules)
 
-            for num_feat_and_thresh in num_feats_and_threshs:
-                num_feat = num_feat_and_thresh[0]
-                num_thresh = num_feat_and_thresh[1]
+        # rules = []
+
+        # for numeric_rule in numeric_rules:
+        #     num_feats_and_threshs = numeric_rule[0]
+            
+        #     feat_and_thresh = []
+
+        #     for num_feat_and_thresh in num_feats_and_threshs:
+        #         num_feat = num_feat_and_thresh[0]
+        #         num_thresh = num_feat_and_thresh[1]
 
                 
                 
-                feat = self._feat_numeric_to_string(num_feat)
-                thresh = self._thresh_numeric_to_string(num_feat, num_thresh)
+        #         feat = self._feat_numeric_to_string(num_feat)
+        #         thresh = self._thresh_numeric_to_string(num_feat, num_thresh)
 
-                feat_and_thresh.append((feat,thresh))
+        #         feat_and_thresh.append((feat,thresh))
 
             
-            result = numeric_rule[1]
+        #     result = numeric_rule[1]
 
-            rules.append((feat_and_thresh, result))
+        #     rules.append((feat_and_thresh, result))
 
-        return rules
-
-    def _get_numeric_rules(self, node, conditions=None):
-        if conditions is None:
-            conditions = []
-
-        if node is None:
-            return conditions
-
-        # If it's a leaf node, add the condition and return
-        if node.value is not None:
-            #(node.feature, node.threshold)], 
-            conditions.append(([conditions.append(node.feature, node.threshold)], node.value))
-        else:
-            # If it's a decision node, recursively traverse left and right
-            left_conditions = conditions + [(node.feature, node.threshold)]
-            right_conditions = conditions + [(node.feature, node.threshold)]
-            
-            get_rules(node.left, left_conditions)
-            get_rules(node.right, right_conditions)
-
-        return conditions
+        return self.rules
     
     def _feat_numeric_to_string(self, num_feat: int)->str:
         
@@ -264,20 +271,33 @@ class DecisionTree:
 
         return res
 
-    def _paths_to_leaves(self, node, rule, rules_list):
+    def inorderTraversal(self, root):
+        res = []
+        if root:
+            res.append((root.feature, root.threshold))
+            if root.is_leaf_node():
+                res.append(root.value)
+            self.inorderTraversal(root.left)
+            self.inorderTraversal(root.right)
+        return res
 
-         if node is not None:
-            # If it's a leaf node, add the rule to the list
+    def _paths_to_leaves(self, node, current_path, all_paths):
+
+        if node is None:
+            current_path = []
+
+        # Add the current node to the path
+        if node is not None:
+            current_path.append((node.feature, node.threshold, node.depth))
             if node.is_leaf_node():
-                rules_list.append([rule] + [node.value])
-                return rules_list
-        # Traverse left and right
-        left = self._paths_to_leaves(node.left, rule + [(node.feature, node.threshold)], rules_list)
-        right = self._paths_to_leaves(node.right, rule + [(node.feature, node.threshold)], rules_list)
+                all_paths.append((current_path[:-1], node.value))
+            else:
+                # Recursive call for left and right subtrees
+                self._paths_to_leaves(node.left, current_path, all_paths)
+                self._paths_to_leaves(node.right, current_path, all_paths)
 
-        return left + right
-
-            
+            # Backtrack: Remove the current node from the current path
+            current_path.pop()
 
     
     def predict(self, X: pd.DataFrame):

@@ -52,33 +52,39 @@ class KMeans:
         self.X = X
 
         self.n_samples, self.n_features = X.shape
-        random_sample_idxs = np.random.choice(self.n_samples, self.K, replace =False)
         
-        centroids = np.array([self.X[idx, :] for idx in random_sample_idxs])
-
-        while len(centroids) < self.K:
-            distances = cross_euclidean_distance(centroids, X)
-            prob_vec = distances.min(axis = 0)
-            prob_vec = prob_vec**2/np.sum(prob_vec**2)
-            #Note: zero proability that new centorid is allready a centroid
-            idx = np.append(idx, np.random.choice(X.shape[0], size=1, p = prob_vec)) 
-            centroids = X[idx,:]
         
-        self.centroids = centroids
-
+        
         for i in range(self.n_rerolls):
+            random_sample_idxs = np.random.choice(self.n_samples, self.K, replace =False)
+            centroids = np.array([self.X[idx, :] for idx in random_sample_idxs])
+        
+            # while len(centroids) < self.K:
+            #         distances = cross_euclidean_distance(centroids, self.X)
+            #         prob_vec = distances.min(axis = 0)
+            #         prob_vec = prob_vec**2/np.sum(prob_vec**2)
+            #         #Note: zero proability that new centorid is allready a centroid
+            #         idx = np.append(idx, np.random.choice(X.shape[0], size=1, p = prob_vec)) 
+            #         centroids = self.X[idx,:]
+            # self.centroids = centroids
+
+            best_reroll_centroids = self.centroids
+            
+            
+
+            self.centroids = np.array(centroids)
             
             # Find the two centroids that are closest and pick the centoid with the lowest average distance to other centroids
-            centroid_dist = cross_euclidean_distance(self.centroids)
-            cetorid_dist_inf = centroid_dist + np.diag(np.repeat(np.inf, centroid_dist.shape[0])) # Add inf to diag
-            worst_pair = np.unravel_index((cetorid_dist_inf).argmin(), cetorid_dist_inf.shape) # Find indexes of worst pair
-            worst_ind = worst_pair[0] if (np.mean(centroid_dist[worst_pair[0]])<np.mean(centroid_dist[worst_pair[1]])) else worst_pair[1]
+            # centroid_dist = cross_euclidean_distance(self.centroids)
+            # cetorid_dist_inf = centroid_dist + np.diag(np.repeat(np.inf, centroid_dist.shape[0])) # Add inf to diag
+            # worst_pair = np.unravel_index((cetorid_dist_inf).argmin(), cetorid_dist_inf.shape) # Find indexes of worst pair
+            # worst_ind = worst_pair[0] if (np.mean(centroid_dist[worst_pair[0]])<np.mean(centroid_dist[worst_pair[1]])) else worst_pair[1]
 
-            # Assign the old centroid to be the one closest to the poinst that are furthest away from the current centroids
-            worst_sample = self._point_away(worst_ind)
+            # # Assign the old centroid to be the one closest to the poinst that are furthest away from the current centroids
+            # worst_sample = self._point_away(worst_ind)
             
             
-            self.centroids[worst_ind,:] = self.X[worst_sample,:]
+            # self.centroids[worst_ind,:] = self.X[worst_sample,:]
               
             # Optimize clusters
             for i in range(self.max_iters):
@@ -92,7 +98,6 @@ class KMeans:
                 self.centroids = self._get_centroids(self.clusters)
 
                 if self._is_converged(centroids_old, self.centroids):
-                    print(i)
                     break
             
             # Classify these sample as the index of the clusters
