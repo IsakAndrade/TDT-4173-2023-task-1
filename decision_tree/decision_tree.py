@@ -1,32 +1,11 @@
 import numpy as np 
-import pandas as pd 
+import pandas as pd
+
 # IMPORTANT: DO NOT USE ANY OTHER 3RD PARTY PACKAGES
 # (math, random, collections, functools, etc. are perfectly fine)
-
-
-# Tree
-# Holds only 2 values.
-#   Tests: 
-#   Quality:
-#   Classification: 
-#   Pass on: 
-# Tests and a threshold that is set by the user of the tree
-class TreeNode:
-    def __init__(self, feature: str = None, threshold: float = None, left = None, right = None, depth = None, *, value: int = None):
-        self.feature   = feature    # Index of feature to split on
-        self.threshold = threshold  # Threshold value for the split
-        self.depth     = depth
-        self.left      = left       # Left subtree
-        self.right     = right      # Right subtree
-        self.value     = value      # Prediction value for leaf nodes
-        
-    def is_leaf_node(self):
-        return self.value is not None 
-    
-
 class DecisionTree:
     
-    def __init__(self, min_samples_split: int = 2, max_depth: int = 100, bagging: bool = False, bag_frac = 1.0, n_trees: int = 1):
+    def __init__(self, min_samples_split: int = 2, max_depth: int = 100, bagging: bool = False, bag_frac: float = 1.0, n_trees: int = 1):
         self.min_samples_split  = min_samples_split
         self.max_depth          = max_depth
         self.bagging            = bagging
@@ -34,7 +13,7 @@ class DecisionTree:
         self.rules              = [[] for i in range(n_trees)]
         self.n_trees            = n_trees
     
-    def fit(self, X: pd.DataFrame, y: pd.Series):
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
         """
         Generates a decision tree for classification
         
@@ -45,7 +24,7 @@ class DecisionTree:
             y (pd.Series): a vector of discrete ground-truth labels
         """
 
-        # Adding a bagging stage aka splitting data even further
+        # Create a set of rules if bagging is wanted.
         if self.bagging:
             for i in range(self.n_trees):
                 X_sample = X.sample(frac=self.bag_frac)
@@ -53,90 +32,89 @@ class DecisionTree:
         else:
             self._grow_tree(X = X, y = y, rule_set= 0)
 
-    def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0, rule = [], rule_set: int = 1):
+    def _grow_tree(self, X: pd.DataFrame, y: pd.Series, depth:int = 0, rule: list[list[tuple[str, str]], str] = [], rule_set: int = 1) -> None:
+        """
+        This function recursivly creates a ruleset. Mainly not a tree due to my inexperience with tree construction.  
+        """
         n_samples  = len(X.index)
         n_labels = len(y.unique())
         
+        # If the tree is too deep, there is a pure leaf or no ability to spli the sample further return.
         if (depth >= self.max_depth or n_labels == 1 or n_samples < self.min_samples_split):
                 leaf_value = self._most_common_label(y)
-                self.rules[rule_set].append([rule] + [leaf_value])
-                
-                return 0
+                self.rules[rule_set].append([rule] + [leaf_value])        
+                return
+
+        # Getting the features of the column values.
         feat_idxs = X.columns.values.copy()
-        
         np.random.shuffle(feat_idxs)
 
         # Modify best split to take a set of blocked split.
         best_feat = self._best_split(X.copy(), y.copy(), feat_idxs)
-        
         best_threshs = X.copy()[best_feat].unique()
         
         # Add a threshhold so that bad rules don't get added :/
-        
-        
         for thr in best_threshs: 
-            
+            # Extract the best features threshold.
             X_col = X[best_feat]
             new_idxs = X_col[X_col == thr].index.to_list()
+            
+            # Add the rule to the existing rule.
             new_rule = rule + [(best_feat, thr)]
             
-            # Check the stopping criteria
+            # Check the stopping criteria.
             y_new = y.copy().loc[new_idxs]
             X_new = X.copy().loc[new_idxs]
         
-            
+            # Remove the feature so it may not be selected for future iterations.
             X_new = X_new.drop(labels= best_feat, axis = 1)
             self._grow_tree(X = X_new, y = y_new, depth = depth+1, rule = new_rule, rule_set =  rule_set)
-            
 
-
-        return 0
+        return
     
-    def _most_common_label(self, y:pd.Series):
+    def _most_common_label(self, y:pd.Series) -> int:
+        """
+        Return the most occuring value in a series.
+        """
         return y.value_counts().idxmax()
 
     def _best_split(self, X: pd.DataFrame, y: pd.Series, feat_idxs: list[int]):
-        best_gain = 10000
-        split_idx, split_thresh = None, None
+        """
+        Iterate through all features and thresholds. Return the best scoring one.
+        """
         
+        best_entropy = 10000
+        split_idx, split_thresh = None, None
         
         for feat_idx in feat_idxs:
             X_col = X[feat_idx]
             
-            gain = self._total_entropy(y, X_col)
-            
-            
-            if gain < best_gain:
-                best_gain = gain
+            entropy = self._total_entropy(y, X_col)
+                
+            if entropy < best_entropy:
+                best_entropy = entropy
                 split_idx = feat_idx  
-        
-        
+
         return split_idx
     
-    def _total_entropy(self, y: pd.Series, X_col: pd.Series):
+    def _total_entropy(self, y: pd.Series, X_col: pd.Series) -> float:
+        """
+        Calculate the entropy of a column.
+        """
+
         total_ent = 0
         n = len(y)
         
         grouped  = X_col.groupby(X_col)
         
         for name, group in grouped:
-
             weight = len(group.index)/n
             counts = y[group.index].value_counts().values
 
             ent = self._entropy(counts)
-            
             total_ent = total_ent + weight*ent
 
-
         return total_ent
-
-    def _split(self, X_col: pd.Series, split_thr: int) -> tuple[list[int], list[int]]:
-        
-        left_idxs   = X_col[X_col <= split_thr].index.to_list()
-        right_idxs  = X_col[X_col > split_thr].index.to_list()
-       
-        return left_idxs, right_idxs
 
     def _entropy(self, counts: np.array):
         """
@@ -181,43 +159,45 @@ class DecisionTree:
 
         return self.rules[0]
     
-    def predict(self, X: pd.DataFrame):
+    def predict(self, X: pd.DataFrame) -> pd.Series:
+        """
+        Use the ruleset to predict future values.
+        """
         
-        
-        
-        #return  np.array([self._traverse_tree(X_numeric.loc[idx], self.root) for idx in X_numeric.index.tolist()])
-        
+        # Use multiple machine learning algorithm and a majority vote. 
         if self.bagging:
             
+            # A list that holds predictions
             y_list = [None for _ in list(range(self.n_trees))]
 
+            # Use a different ruleset for each prediction.
             for i, rule_set in enumerate(self.rules):
-                
                 y_list[i] = self._predict_with_rules(X.copy(), rule_set)
 
+            # Creating a dataframe holding all values
             y_bagged = pd.concat(y_list, axis=1)
             
             # Added majority rule
             row_modes = y_bagged.mode(axis='columns')
             
-            
+            # Pick the highest values, and a random tie value
             y = row_modes[0]
             
         else:
+            # Picking the first and only ruleset of a non-bagged value.
             rules = self.rules[0]
             y = self._predict_with_rules(X, rules)
 
         return y
     
-    def _predict_with_rules(self, X: pd.DataFrame, rules)-> pd.Series:
+    def _predict_with_rules(self, X: pd.DataFrame, rules:list[list[list[tuple[str, str]], str]])-> pd.Series:
         
         y = pd.Series(index=X.copy().index, dtype = str)
         
         for rule in rules:
                 conditions_unformated = rule[0]
-                
                 result= rule[1]
-                
+        
                 conditions = X.index >= 0
 
                 for i, cond in enumerate(conditions_unformated):
@@ -228,15 +208,9 @@ class DecisionTree:
                 
                 idxs = X[conditions].index.to_list()
                 for idx in idxs:
-                    y.loc[idx] = result
-                    
-        
+                    y.loc[idx] = result        
         return y
 
-
-
-
-    
 def accuracy(y_true, y_pred):
     """
     Computes discrete classification accuracy
