@@ -83,13 +83,11 @@ class DecisionTree:
             # Check the stopping criteria
             y_new = y.copy().loc[new_idxs]
             X_new = X.copy().loc[new_idxs]
-            
-            n_samples_new = len(new_idxs) 
-
         
+            
             X_new = X_new.drop(labels= best_feat, axis = 1)
             self._grow_tree(X = X_new, y = y_new, depth = depth+1, rule = new_rule, rule_set =  rule_set)
-                
+            
 
 
         return 0
@@ -194,16 +192,17 @@ class DecisionTree:
             y_list = [None for _ in list(range(self.n_trees))]
 
             for i, rule_set in enumerate(self.rules):
-                print(i)
+                
                 y_list[i] = self._predict_with_rules(X.copy(), rule_set)
 
             y_bagged = pd.concat(y_list, axis=1)
-            print(y_bagged.head())
-            row_modes = y_bagged.mode(axis=1)
+            
+            # Added majority rule
+            row_modes = y_bagged.mode(axis='columns')
+            
             
             y = row_modes[0]
             
-
         else:
             rules = self.rules[0]
             y = self._predict_with_rules(X, rules)
@@ -213,10 +212,10 @@ class DecisionTree:
     def _predict_with_rules(self, X: pd.DataFrame, rules)-> pd.Series:
         
         y = pd.Series(index=X.copy().index, dtype = str)
-        print(rules)
+        
         for rule in rules:
                 conditions_unformated = rule[0]
-                print(conditions_unformated)
+                
                 result= rule[1]
                 
                 conditions = X.index >= 0
